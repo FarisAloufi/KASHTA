@@ -1,8 +1,9 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 
-
+// Pages
 import Navbar from './components/layout/Navbar';
+import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -11,41 +12,41 @@ import MyBookingsPage from './pages/MyBookingsPage';
 import BookingDetailPage from './pages/BookingDetailPage';
 import AddServicePage from './pages/provider/AddServicePage';
 import ManageBookingsPage from './pages/provider/ManageBookingsPage';
-import Footer from './components/layout/Footer';
+import ServicesPage from './pages/ServicesPage'; 
+import AboutUsPage from './pages/AboutUsPage';
 
-// 2. استيراد المسارات المحمية
-import ProtectedRoute from './components/auth/ProtectedRoute'; // المسار المحمي للعملاء
-import ProviderRoute from './components/auth/ProviderRoute'; // المسار المحمي للمزودين
+// Routes
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import ProviderRoute from './components/auth/ProviderRoute';
 
 function App() {
   return (
-    <>
-      {/* الـ Navbar يظهر في كل الصفحات */}
+    <div className="flex flex-col min-h-screen"> 
       <Navbar />
+      
+      <main className="flex-grow">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/services" element={<ServicesPage />} />
+          <Route path="/about-us" element={<AboutUsPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/service/:id" element={<ServiceDetailPage />} />
 
-      {/* 3. تعريف كل المسارات في التطبيق */}
-      <Routes>
-        
-        {/* === المسارات العامة (للجميع) === */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/service/:id" element={<ServiceDetailPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/my-bookings" element={<MyBookingsPage />} />
+            <Route path="/booking/:id" element={<BookingDetailPage />} /> 
+          </Route>
 
-        {/* === المسارات المحمية (للمسجلين فقط - عملاء أو مزودين) === */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/my-bookings" element={<MyBookingsPage />} />
-          <Route path="/booking/:id" element={<BookingDetailPage />} /> 
-        </Route>
-
-        {/* === المسارات المحمية (للمزودين "provider" فقط) === */}
-        <Route element={<ProviderRoute />}>
-          <Route path="/add-service" element={<AddServicePage />} />
-          <Route path="/manage-bookings" element={<ManageBookingsPage />} />
-        </Route>
-
-      </Routes>
-    </>
+          <Route element={<ProviderRoute />}>
+            <Route path="/add-service" element={<AddServicePage />} />
+            <Route path="/manage-bookings" element={<ManageBookingsPage />} />
+          </Route>
+        </Routes>
+      </main>
+      
+      <Footer />
+    </div>
   );
 }
 

@@ -8,7 +8,7 @@ import RatingForm from '../components/orders/RatingForm';
 import DisplayRating from '../components/orders/DisplayRating';
 import { useAuth } from '../context/AuthContext';
 
-// 1. *** تم نقل الدوال المساعدة هنا (إلى الأعلى) لحل المشكلة ***
+
 const getStatusColor = (status) => {
   switch (status) {
     case 'pending':
@@ -41,7 +41,7 @@ const getStatusText = (status) => {
       return 'غير معروف';
   }
 };
-// ----------------------------------------------------
+
 
 
 function BookingDetailPage() {
@@ -49,9 +49,9 @@ function BookingDetailPage() {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { userRole } = useAuth(); // جلب "صلاحية" المستخدم الحالي
+  const { userRole } = useAuth(); 
 
-  // ... (useEffect للاستماع للطلب - كما كان) ...
+
   useEffect(() => {
     setLoading(true);
     setError('');
@@ -89,9 +89,9 @@ function BookingDetailPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-3xl">
-      <div className="bg-white p-6 rounded-lg shadow-lg">
+      <div className="bg-[#d8ceb8ff] p-6 rounded-lg shadow-lg">
         
-        {/* رأس الصفحة (الآن سيعمل لأن الدوال مُعرفة) */}
+ 
         <div className="flex justify-between items-start mb-4">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">{booking.serviceName}</h1>

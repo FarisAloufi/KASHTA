@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { db } from '../../firebase/firebaseConfig'; // 1. لا نحتاج storage هنا
-import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../../firebase/firebaseConfig';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext'; 
 
 function AddServicePage() {
+  const { currentUser } = useAuth();
   const [name, setName] = useState('');
   const [price, setPrice] = useState(0);
   const [imageUrl, setImageUrl] = useState('');
-  const [description, setDescription] = useState(''); // إضافة حقل وصف
+  const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,23 +21,23 @@ function AddServicePage() {
     setSuccess('');
 
     if (!name || price <= 0 || !imageUrl || !description) {
-      setError('الرجاء ملء جميع الحقول (بما في ذلك الوصف) بسعر صحيح.');
+      setError('الرجاء ملء جميع الحقول بسعر صحيح.');
       return;
     }
 
     setLoading(true);
 
     try {
-      // حفظ البيانات في Firestore (باستخدام الرابط من Cloudinary)
       await addDoc(collection(db, "services"), {
         name: name,
         price: Number(price),
         imageUrl: imageUrl,
-        description: description, // حفظ الوصف الجديد
-        createdAt: new Date(),
+        description: description,
+        createdAt: serverTimestamp(),
+        providerId: currentUser.uid, 
       });
       
-      setSuccess('تمت إضافة الخدمة بنجاح! شكراً لك.');
+      setSuccess('تمت إضافة الخدمة بنجاح!');
       
       setName('');
       setPrice(0);
@@ -43,7 +45,7 @@ function AddServicePage() {
       setDescription('');
 
       setTimeout(() => {
-        navigate('/manage-bookings'); // توجيه للمزود لصفحة إدارة الطلبات
+        navigate('/services'); 
       }, 2000);
 
     } catch (err) {
@@ -55,23 +57,25 @@ function AddServicePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10">
-      <div className="container mx-auto p-6 max-w-2xl">
-        <h1 className="text-4xl font-extrabold text-center text-gray-900 mb-10">
+  
+    <div className="min-h-screen flex items-center justify-center p-6">
+     
+      <div className="max-w-2xl w-full bg-[#d8ceb8ff] text-[#3e2723] rounded-3xl shadow-2xl p-10 border border-dark-brown/10">
+        <h1 className="text-4xl font-extrabold text-center text-[#3e2723] mb-10">
           إضافة خدمة جديدة
         </h1>
 
-        {error && <p className="bg-red-100 border-2 border-red-300 text-red-700 p-3 rounded-xl mb-6 text-center font-medium">{error}</p>}
-        {success && <p className="bg-green-100 border-2 border-green-300 text-green-700 p-3 rounded-xl mb-6 text-center font-medium">{success}</p>}
+        {error && <p className="bg-red-100 text-red-700 p-3 rounded-xl mb-6 text-center font-medium">{error}</p>}
+        {success && <p className="bg-green-100 text-green-700 p-3 rounded-xl mb-6 text-center font-medium">{success}</p>}
 
-        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-3xl shadow-2xl border border-gray-100">
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          <div className="mb-6">
-            <label className="block text-gray-700 text-lg font-semibold mb-2 text-right" htmlFor="name">
-              اسم الخدمة
+          <div>
+            <label className="block text-[#3e2723] text-base font-semibold mb-2 text-right" htmlFor="name">
+              اسم الخدمة (مثل: خيمة ملكية)
             </label>
             <input
-              className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+              className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-black leading-tight focus:outline-none focus:ring-2 focus:ring-black transition"
               id="name"
               type="text"
               value={name}
@@ -80,12 +84,12 @@ function AddServicePage() {
             />
           </div>
 
-          <div className="mb-6">
-            <label className="block text-gray-700 text-lg font-semibold mb-2 text-right" htmlFor="description">
+          <div>
+            <label className="block text-[#3e2723] text-base font-semibold mb-2 text-right" htmlFor="description">
               وصف الخدمة
             </label>
             <textarea
-              className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+              className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-black leading-tight focus:outline-none focus:ring-2 focus:ring-black transition"
               id="description"
               rows="4"
               value={description}
@@ -95,13 +99,13 @@ function AddServicePage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-gray-700 text-lg font-semibold mb-2 text-right" htmlFor="price">
+              <label className="block text-[#3e2723] text-base font-semibold mb-2 text-right" htmlFor="price">
                 السعر (بالريال)
               </label>
               <input
-                className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-black leading-tight focus:outline-none focus:ring-2 focus:ring-black transition"
                 id="price"
                 type="number"
                 value={price}
@@ -110,11 +114,11 @@ function AddServicePage() {
               />
             </div>
             <div>
-              <label className="block text-gray-700 text-lg font-semibold mb-2 text-right" htmlFor="imageUrl">
+              <label className="block text-[#3e2723] text-base font-semibold mb-2 text-right" htmlFor="imageUrl">
                 رابط صورة الخدمة (Cloudinary)
               </label>
               <input
-                className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
+                className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-black leading-tight focus:outline-none focus:ring-2 focus:ring-black transition"
                 id="imageUrl"
                 type="text"
                 placeholder="https://res.cloudinary.com/..."
@@ -125,9 +129,10 @@ function AddServicePage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center pt-4">
+          
             <button
-              className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-8 rounded-xl focus:outline-none focus:shadow-outline text-xl transition shadow-lg disabled:bg-gray-400"
+              className="bg-black text-white font-bold py-3 px-8 rounded-xl focus:outline-none focus:shadow-outline text-lg transition shadow-lg disabled:bg-gray-400 hover:bg-gray-800"
               type="submit"
               disabled={loading}
             >

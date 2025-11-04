@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { FaStar } from 'react-icons/fa';
-import { db, auth } from '../../firebase/firebaseConfig';
+import { db } from '../../firebase/firebaseConfig';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext'; 
 
-// 1. مكون النجوم
+
 const StarRating = ({ rating, setRating }) => {
   return (
     <div className="flex justify-center space-x-2 space-x-reverse mb-4">
@@ -17,7 +17,7 @@ const StarRating = ({ rating, setRating }) => {
               name="rating"
               value={ratingValue}
               onClick={() => setRating(ratingValue)}
-              className="hidden" // إخفاء الراديو
+              className="hidden"
             />
             <FaStar
               className="cursor-pointer"
@@ -31,9 +31,8 @@ const StarRating = ({ rating, setRating }) => {
   );
 };
 
-// 2. مكون الفورم الرئيسي
 function RatingForm({ booking }) {
-  const { currentUser } = useAuth();
+  const { userData } = useAuth(); 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [error, setError] = useState('');
@@ -49,25 +48,29 @@ function RatingForm({ booking }) {
       setError('الرجاء اختيار تقييم (نجوم) وكتابة تعليق.');
       return;
     }
+    if (!userData) {
+        setError('خطأ: لم يتم العثور على بيانات المستخدم.');
+        return;
+    }
     setLoading(true);
 
     try {
-      // 3. الخطوة أ: إضافة التقييم إلى مجموعة "ratings"
+
       await addDoc(collection(db, "ratings"), {
-        userId: currentUser.uid,
-        serviceId: booking.serviceId, // ID الخدمة التي تم تقييمها
+        userId: userData.uid,
+        userName: userData.name, 
+        serviceId: booking.serviceId,
         serviceName: booking.serviceName,
-        bookingId: booking.id, // ID الطلب
+        bookingId: booking.id,
         rating: rating,
         comment: comment,
         createdAt: serverTimestamp(),
       });
 
-      // 4. الخطوة ب: تحديث الطلب "booking" ليصبح "تم تقييمه"
-      // (هذا يمنع العميل من تقييم نفس الطلب مرتين)
+
       const bookingDocRef = doc(db, "bookings", booking.id);
       await updateDoc(bookingDocRef, {
-        rated: true // إضافة حقل جديد
+        rated: true
       });
 
       setSuccess('شكراً على تقييمك!');
@@ -80,7 +83,6 @@ function RatingForm({ booking }) {
     }
   };
 
-  // 5. إذا تم التقييم بنجاح، لا تظهر الفورم مرة أخرى
   if (success) {
     return (
       <div className="border-t-2 border-dashed border-gray-300 pt-6 mt-6">

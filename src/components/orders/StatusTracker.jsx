@@ -1,7 +1,7 @@
 import React from 'react';
 import { FaHourglassHalf, FaCheckCircle, FaTruck, FaRegSmileBeam, FaTimesCircle } from 'react-icons/fa';
 
-// 1. تعريف الخطوات بالترتيب
+
 const steps = [
   { status: 'pending', text: 'أرسلنا طلبك... المزود يتقهوى ويشيك عليه', icon: <FaHourglassHalf /> },
   { status: 'confirmed', text: 'وافقوا! طلبك قيد التجهيز (باقي شوي)', icon: <FaCheckCircle /> },
@@ -9,14 +9,13 @@ const steps = [
   { status: 'completed', text: 'وصل بالسلامة. استمتع بالكشتة!', icon: <FaRegSmileBeam /> }
 ];
 
-// 2. دالة لتحديد الحالة الملغية
+
 const cancelledStep = { status: 'cancelled', text: 'أووه! للأسف الطلب ملغي', icon: <FaTimesCircle /> };
 
 function StatusTracker({ status }) {
-  // 3. تحديد الخطوة الحالية
+
   const currentStepIndex = steps.findIndex(step => step.status === status);
 
-  // 4. حالة الطلب الملغي
   if (status === 'cancelled') {
     return (
       <div className="p-4 bg-red-100 rounded-lg">
@@ -28,17 +27,17 @@ function StatusTracker({ status }) {
     );
   }
 
-  // 5. عرض الخطوات بالترتيب
+
   return (
     <div className="space-y-6">
       {steps.map((step, index) => {
-        // تحديد إذا كانت الخطوة "مكتملة" أو "حالية"
+
         const isCompleted = index < currentStepIndex;
         const isCurrent = index === currentStepIndex;
 
         return (
           <div key={step.status} className="flex items-center">
-            {/* الأيقونة والدائرة */}
+  
             <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center
               ${isCompleted ? 'bg-green-600 text-white' : 
                 isCurrent ? 'bg-blue-600 text-white' : 
@@ -47,7 +46,7 @@ function StatusTracker({ status }) {
               <span className="text-2xl">{step.icon}</span>
             </div>
             
-            {/* النص */}
+
             <div className="ml-4">
               <h4 className={`text-lg font-bold 
                 ${isCompleted || isCurrent ? 'text-gray-900' : 'text-gray-500'}`}

@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { db, auth } from '../firebase/firebaseConfig';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, onSnapshot, query, where, getDocs, orderBy } from 'firebase/firestore';
 import MapPicker from '../components/map/MapPicker';
 import { FaStar } from 'react-icons/fa'; 
 import { subscribeToAverageRating } from '../services/ratingService'; 
 import { useAuth } from '../context/AuthContext';
 
+import RatingForm from '../components/orders/RatingForm';
+import DisplayRating from '../components/orders/DisplayRating';
 
-// مكون النجوم (للعرض فقط)
-const StarsReadOnly = ({ rating }) => {
+
+const StarsReadOnly = ({ rating, size = 20 }) => {
     return (
         <div className="flex space-x-1 space-x-reverse">
             {[...Array(5)].map((_, index) => {
@@ -17,8 +19,11 @@ const StarsReadOnly = ({ rating }) => {
                 return (
                     <FaStar
                         key={ratingValue}
-                        color={ratingValue <= rating ? "#ffc107" : "#e4e5e9"}
-                        size={20}
+                        
+                        color={ratingValue <= rating ? "#ffc107" : "#3e2723"}
+                        stroke={ratingValue <= rating ? "#ffc107" : "#3e2723"}
+                        fill={ratingValue <= rating ? "#ffc107" : "none"}
+                        size={size}
                     />
                 );
             })}
@@ -30,8 +35,8 @@ const StarsReadOnly = ({ rating }) => {
 function ServiceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser, userRole } = useAuth();
-
+  const { currentUser, userData, userRole } = useAuth();
+  
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,18 +46,32 @@ function ServiceDetailPage() {
   const [location, setLocation] = useState(null);
   const [bookingError, setBookingError] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
+  
 
-  // State جديد للتقييم
   const [averageRating, setAverageRating] = useState({ average: 0, count: 0 }); 
+  const [individualRatings, setIndividualRatings] = useState([]);
+  const [similarServices, setSimilarServices] = useState([]);
 
   useEffect(() => {
-    const fetchService = async () => {
+    setLoading(true);
+
+    const fetchServiceAndRatings = async () => {
       try {
         const serviceDocRef = doc(db, 'services', id);
         const docSnap = await getDoc(serviceDocRef);
 
         if (docSnap.exists()) {
-          setService({ id: docSnap.id, ...docSnap.data() });
+          const serviceData = { id: docSnap.id, ...docSnap.data() };
+          setService(serviceData);
+          
+          const ratingsRef = collection(db, 'ratings');
+          const ratingsQuery = query(ratingsRef, where('serviceId', '==', id), orderBy('createdAt', 'desc'));
+          const ratingsSnap = await getDocs(ratingsQuery);
+          setIndividualRatings(ratingsSnap.docs.map(d => ({id: d.id, ...d.data()})));
+
+          const similarQuery = query(collection(db, 'services'), where('price', '<=', serviceData.price + 50), where('price', '>=', serviceData.price - 50));
+          const similarSnap = await getDocs(similarQuery);
+          setSimilarServices(similarSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.id !== id).slice(0, 3));
         } else {
           setError('لم يتم العثور على هذه الخدمة.');
         }
@@ -63,28 +82,31 @@ function ServiceDetailPage() {
       setLoading(false);
     };
 
-    fetchService();
+    fetchServiceAndRatings();
 
-    // *** الاستماع للتقييمات الجديدة ***
     const unsubscribeRating = subscribeToAverageRating(id, (data) => {
-        setAverageRating(data); // تحديث المتوسط عند أي تغيير في التقييمات
+        setAverageRating(data);
     });
 
-    // دالة التنظيف (لإيقاف استماع التقييم)
     return () => {
         unsubscribeRating();
     };
-
   }, [id]); 
 
-  // دالة الحجز
+
   const handleBooking = async (e) => {
     e.preventDefault();
     setBookingError('');
     
-    if (!currentUser || userRole !== 'customer') {
-      navigate('/login');
+    if (!currentUser) {
+      setBookingError('يجب عليك تسجيل الدخول أولاً للقيام بالحجز.');
+      setTimeout(() => navigate('/login'), 1500); 
       return;
+    }
+    
+    if (userRole !== 'customer') {
+        setBookingError('فقط العملاء يمكنهم القيام بالحجز.');
+        return;
     }
 
     if (!bookingDate || !location) {
@@ -97,14 +119,15 @@ function ServiceDetailPage() {
     try {
       await addDoc(collection(db, "bookings"), {
         userId: currentUser.uid,
-        userName: currentUser.email, 
+        userName: userData?.name || currentUser.email, 
         serviceId: service.id,
         serviceName: service.name,
         servicePrice: service.price,
-        bookingDate: new Date(bookingDate).getTime(), 
+        bookingDate: new Date(bookingDate).toISOString(), 
         location: location,
         status: 'pending', 
         createdAt: serverTimestamp(),
+        rated: false,
       });
 
       alert('تم إرسال طلب الحجز بنجاح! سيتم مراجعته من قبل المزود.');
@@ -122,83 +145,142 @@ function ServiceDetailPage() {
 
 
   if (loading) {
-    return <h1 className="text-center text-2xl p-10">جاري تحميل الخدمة...</h1>;
+    return <h1 className="text-center text-2xl p-10 text-light-beige">جاري تحميل الخدمة...</h1>; 
   }
   if (error) {
-    return <h1 className="text-center text-2xl p-10 text-red-600">{error}</h1>;
+    return <h1 className="text-center text-2xl p-10 text-red-400">{error}</h1>;
   }
   if (!service) { return null; }
 
+  const minDate = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-4xl font-bold text-gray-900 mb-2">{service.name}</h1>
-      
-      {/* *** عرض متوسط التقييم هنا *** */}
-      <div className="flex items-center space-x-2 space-x-reverse mb-4">
-        <StarsReadOnly rating={averageRating.average} />
-        <span className="text-xl font-bold text-gray-700">{averageRating.average}</span>
-        <span className="text-gray-500">({averageRating.count} تقييم)</span>
-      </div>
-      
-      <img 
-        src={service.imageUrl} 
-        alt={service.name} 
-        className="w-full h-96 object-cover rounded-lg shadow-lg mb-6" 
-      />
-      
-      <p className="text-gray-700 text-lg mb-6">{service.description}</p>
 
-      <div className="bg-green-50 p-6 rounded-lg shadow-inner mb-8">
-        <p className="text-3xl font-bold text-green-700">
-          السعر: {service.price} ريال
-        </p>
-      </div>
-
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">احجز الآن</h2>
-        
-        {bookingError && <p className="bg-red-100 text-red-700 p-3 rounded mb-4 text-center">{bookingError}</p>}
-
-        <form onSubmit={handleBooking} className="space-y-4">
+    <div className="bg-kashta-bg min-h-screen py-10 text-light-beige">
+      <div className="container mx-auto p-6 max-w-4xl space-y-12">
           
-          <div>
-            <label htmlFor="date" className="block text-gray-700 font-bold mb-2">
-              اختر تاريخ ووقت "الكشتة"
-            </label>
-            <input
-              type="datetime-local"
-              id="date"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              value={bookingDate}
-              onChange={(e) => setBookingDate(e.target.value)}
-              required
-            />
-          </div>
+       
 
-          <div>
-            <label className="block text-gray-700 font-bold mb-2">
-              حدد الموقع على الخريطة
-            </label>
-            <MapPicker onLocationChange={setLocation} />
-            {location && (
-              <p className="text-sm text-gray-500 mt-2">
-                الموقع المحدد: (خط عرض: {location.lat.toFixed(4)}, خط طول: {location.lng.toFixed(4)})
-              </p>
-            )}
-          </div>
+          <section className="bg-[#d8ceb8ff] text-[#3e2723] p-6 rounded-2xl shadow-xl border border-dark-brown/10">
+              <h1 className="text-4xl font-extrabold text-[#3e2723] mb-3">{service.name}</h1>
+              
 
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded focus:outline-none focus:shadow-outline disabled:bg-gray-400"
-            disabled={bookingLoading}
-          >
-            {bookingLoading ? 'جاري إرسال الطلب...' : 'تأكيد الحجز والدفع لاحقاً'}
-          </button>
-        </form>
+              <div className="flex items-center space-x-2 space-x-reverse mb-6">
+                  <StarsReadOnly rating={averageRating.average} size={24} />
+                  <span className="text-2xl font-bold text-[#e48a4e]">{averageRating.average}</span>
+                  <span className="text-lg text-gray-500">({averageRating.count} تقييم)</span>
+              </div>
+
+              <img 
+                  src={service.imageUrl} 
+                  alt={service.name} 
+                  className="w-full h-96 object-cover rounded-xl shadow-lg mb-6" 
+              />
+              
+
+              <div className="bg-kashta-brown/10 p-4 rounded-xl mb-6 text-center font-bold text-[#3e2723]">
+                  <p className="text-3xl">السعر: {service.price} ريال / الليلة</p>
+              </div>
+
+
+              <h3 className="text-2xl font-bold text-[#3e2723] mt-6 mb-3 border-b border-dark-brown/20 pb-2">تفاصيل الخدمة</h3>
+              <p className="text-[#3e2723] text-lg whitespace-pre-wrap">{service.description || "لا يوجد وصف متوفر حالياً."}</p>
+          </section>
+
+
+
+          <section className="bg-[#d8ceb8ff] text-[#3e2723] p-6 rounded-2xl shadow-2xl border-2 border-[#3e2723]" id="booking-section">
+              <h2 className="text-3xl font-extrabold text-center mb-6 text-[#3e2723]">
+                  تأكيد الحجز
+              </h2>
+              
+              {bookingError && <p className="bg-red-100 text-red-700 p-3 rounded-xl mb-6 text-center font-medium">{bookingError}</p>}
+
+              <form onSubmit={handleBooking} className="space-y-4">
+                
+                <div>
+                  <label htmlFor="date" className="block text-[#3e2723] font-bold mb-2">
+                    اختر تاريخ ووقت "الكشتة"
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="date"
+                    className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-[#3e2723] leading-tight focus:outline-none focus:ring-2 focus:ring-black transition"
+                    value={bookingDate}
+                    onChange={(e) => setBookingDate(e.target.value)}
+                    min={minDate}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[#3e2723] font-bold mb-2">
+                    حدد الموقع على الخريطة
+                  </label>
+                  <MapPicker onLocationChange={setLocation} />
+                </div>
+
+
+                <button
+                  type="submit"
+                  className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-xl text-xl transition shadow-lg disabled:bg-gray-400"
+                  disabled={bookingLoading}
+                >
+                  {bookingLoading ? 'جاري إرسال الطلب...' : 'تأكيد الحجز'}
+                </button>
+              </form>
+          </section>
+
+
+          <hr className="border-t-2 border-light-beige/20" />
+
+
+          {similarServices.length > 0 && (
+            <section className="bg-[#d8ceb8ff] text-[#3e2723] p-6 rounded-2xl shadow-xl border border-dark-brown/10">
+                <h3 className="text-3xl font-extrabold text-[#3e2723] mb-6">خدمات قد تعجبك</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {similarServices.map(simService => (
+                        <Link key={simService.id} to={`/service/${simService.id}`} className="block border rounded-lg hover:shadow-lg transition bg-white">
+                            <img src={simService.imageUrl} alt={simService.name} className="w-full h-40 object-cover rounded-t-lg" />
+                            <div className="p-3">
+                                <p className="text-[#3e2723] font-bold">{simService.name}</p>
+                                <p className="text-[#e48a4e] font-bold">{simService.price} ر.س</p>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            </section>
+          )}
+
+
+          <hr className="border-t-2 border-light-beige/20" />
+
+
+          <section className="bg-[#d8ceb8ff] text-[#3e2723] p-6 rounded-2xl shadow-xl border border-dark-brown/10">
+              <h3 className="text-3xl font-extrabold text-[#3e2723] mb-6">آراء العملاء ({averageRating.count})</h3>
+              <div className="space-y-6">
+                  {individualRatings.length > 0 ? (
+                      individualRatings.map((rating) => (
+                          <div key={rating.id} className="border-b border-dark-brown/20 py-4 last:border-b-0">
+                              <div className="flex justify-between">
+                                  <StarsReadOnly rating={rating.rating} size={18} />
+                                  <p className="text-sm text-gray-500">
+                                      {rating.createdAt ? new Date(rating.createdAt.toDate()).toLocaleDateString('ar-SA') : '...'}
+                                  </p>
+                              </div>
+                              <p className="text-[#3e2723] italic text-lg my-2">"{rating.comment}"</p>
+                              <p className="text-sm text-gray-600 font-medium">
+                                  - {rating.userName || 'عميل'}
+                              </p>
+                          </div>
+                      ))
+                  ) : (
+                      <p className="text-gray-500 text-center py-5">كن أول من يقيّم هذه الخدمة!</p>
+                  )}
+              </div>
+          </section>
       </div>
-
-      {/* هنا يمكنك إضافة قسم لعرض التقييمات الفردية لاحقًا */}
-
     </div>
   );
 }

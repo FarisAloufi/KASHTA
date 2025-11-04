@@ -2,11 +2,16 @@
 @import "leaflet-geosearch/dist/geosearch.css";
 @import "tailwindcss";
 
-@import "tailwindcss";
-@import "tailwindcss/utilities";
 
-/* تنسيق عام للخريطة */
+body {
+    background-color: #4A352F; 
+    color: #f5f1e8; 
+    font-family: 'Kumbh Sans', sans-serif;
+}
+
+
 .leaflet-container {
   text-align: right;
-  direction: rtl;
+  direction: rtl; 
+  background-color: #e0e0e0;
 }

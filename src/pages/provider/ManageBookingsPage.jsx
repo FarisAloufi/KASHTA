@@ -7,7 +7,7 @@ function ManageBookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ... (دالة fetchBookings كما كانت) ...
+
   const fetchBookings = async () => {
     setLoading(true);
     try {
@@ -52,18 +52,18 @@ function ManageBookingsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold text-center text-gray-900 mb-8">
+      <h1 className="text-3xl font-bold text-center text-black mb-8">
         إدارة الطلبات
       </h1>
       
       {bookings.length === 0 ? (
-        <p className="text-center text-gray-500">لا توجد أي طلبات حالياً.</p>
+        <p className="text-center text-black">لا توجد أي طلبات حالياً.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {bookings.map(booking => (
             <BookingCard key={booking.id} booking={booking}>
               
-              {/* === 1. أزرار (قيد الانتظار) === */}
+   
               {booking.status === 'pending' && (
                 <div className="flex justify-between gap-2">
                   <button 
@@ -81,7 +81,7 @@ function ManageBookingsPage() {
                 </div>
               )}
 
-              {/* === 2. زر (قيد التجهيز) === */}
+    
               {booking.status === 'confirmed' && (
                 <button 
                   onClick={() => handleUpdateStatus(booking.id, 'ready')}
@@ -91,7 +91,7 @@ function ManageBookingsPage() {
                 </button>
               )}
 
-              {/* === 3. زر (في الطريق) === */}
+           
               {booking.status === 'ready' && (
                 <button 
                   onClick={() => handleUpdateStatus(booking.id, 'completed')}
@@ -101,7 +101,7 @@ function ManageBookingsPage() {
                 </button>
               )}
 
-              {/* (لا تظهر أزرار للطلبات المكتملة أو الملغية) */}
+      
 
             </BookingCard>
           ))}
