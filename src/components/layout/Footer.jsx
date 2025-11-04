@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 import { FaFacebook, FaInstagram, FaTwitter } from 'react-icons/fa';
+import KashtaLogo from '../../assets/Kashtalogo.png';
 
 function Footer() {
   return (
@@ -11,7 +12,8 @@ function Footer() {
         
         {/* About Section */}
         <div>
-          <h3 className="text-xl font-bold mb-4">كشتة</h3>
+          
+          <img src={KashtaLogo} alt="KASHTA Logo" className="h-12 w-auto mb-4" />
           <p className="text-[#3e2723]/90">
             وجهتك الأولى لحجز أفضل الخيام والمستلزمات لرحلات التخييم.
           </p>

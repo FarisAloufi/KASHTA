@@ -14,6 +14,7 @@ import AddServicePage from './pages/provider/AddServicePage';
 import ManageBookingsPage from './pages/provider/ManageBookingsPage';
 import ServicesPage from './pages/ServicesPage'; 
 import AboutUsPage from './pages/AboutUsPage';
+import CartPage from './pages/CartPage';
 
 // Routes
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -29,6 +30,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/about-us" element={<AboutUsPage />} />
+          <Route path="/cart" element={<CartPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/service/:id" element={<ServiceDetailPage />} />
