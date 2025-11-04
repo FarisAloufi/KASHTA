@@ -1,81 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/firebaseConfig'; 
-import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'; 
+import { collection, getDocs, query, where, orderBy, limit, doc, deleteDoc } from 'firebase/firestore'; 
 import { Link } from 'react-router-dom'; 
-import { Star, Sparkles, TrendingUp, MapPin, Users, Award } from 'lucide-react'; 
-
-
-const StarsReadOnly = ({ rating, size = 16 }) => {
-    return (
-        <div className="flex gap-0.5" dir="rtl">
-            {[...Array(5)].map((_, index) => {
-                const ratingValue = index + 1;
-                return (
-                    <Star
-                        key={ratingValue}
-                        fill={ratingValue <= rating ? "#ffc107" : "none"} 
-                        stroke={ratingValue <= rating ? "#ffc107" : "#3e2723"}
-                        size={size}
-                        className="transition-all"
-                    />
-                );
-            })}
-        </div>
-    );
-};
-
-const HomeServiceCard = ({ service }) => {
-    return (
-        
-        <div className="group relative bg-[#d8ceb8ff] text-[#3e2723] rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 border border-dark-brown/10">
-           <Link to={`/service/${service.id}`}>
-            <div className="relative h-64 overflow-hidden">
-                <img 
-                    src={service.imageUrl || "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800"} 
-                    alt={service.name} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                {service.rating >= 4.5 && (
-                    <div className="absolute top-4 right-4 bg-accent-orange text-[#3e2723] px-3 py-1.5 rounded-full text-sm font-bold flex items-center gap-1 shadow-lg">
-                        <Award size={14} />
-                        <span>الأفضل</span>
-                    </div>
-                )}
-            </div>
-            </Link>
-            <div className="p-6">
-                <h3 className="text-2xl font-bold text-[#3e2723] mb-3 group-hover:text-accent-orange transition-colors">
-                    {service.name}
-                </h3>
-                                
-                <div className="flex items-center gap-3 mb-4" dir="rtl">
-                    <StarsReadOnly rating={service.rating} size={18} />
-                    <span className="text-lg font-bold text-[#3e2723]">{service.rating}</span>
-                    <span className="text-sm text-[#3e2723]">({service.ratingCount} تقييم)</span>
-                </div>
-                
-                <div className="flex justify-between items-center pt-5 border-t border-dark-brown/10">
-                    <div>
-                        <div className="text-sm text-dark-brown/70 mb-1">السعر يبدأ من</div>
-                        <span className="text-3xl font-black text-dark-brown">
-                            {service.price} ريال
-                        </span>
-                    </div>
-                    
-                 
-                    <Link 
-                        to={`/service/${service.id}`}
-                        className="bg-black text-white px-7 py-4 rounded-2xl font-black text-lg shadow-2xl hover:shadow-gray-800/50 hover:scale-105 transition-all duration-300"
-                    >
-                        احجز الآن
-                    </Link>
-                </div>
-            </div>
-        </div>
-    );
-};
+import { Sparkles, TrendingUp, MapPin, Users, Award } from 'lucide-react'; 
+import { useAuth } from '../context/AuthContext';
+import ServiceCard, { StarsReadOnly } from '../components/services/ServiceCard';
 
 
 const StatsSection = () => {
@@ -102,6 +31,7 @@ function HomePage() {
   const [services, setServices] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { userRole } = useAuth();
 
 
   useEffect(() => {
@@ -152,6 +82,20 @@ function HomePage() {
     fetchData();
   }, []);
 
+
+  const handleDeleteService = async (serviceId) => {
+    try {
+      const serviceDocRef = doc(db, 'services', serviceId);
+      await deleteDoc(serviceDocRef);
+      setServices(prevServices => 
+        prevServices.filter(service => service.id !== serviceId)
+      );
+    } catch (error) {
+      console.error("Error removing document: ", error);
+    }
+  };
+
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-dark-brown">
@@ -242,7 +186,12 @@ function HomePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {services.map(service => (
-              <HomeServiceCard key={service.id} service={service} />
+              <ServiceCard 
+                key={service.id} 
+                service={service} 
+                userRole={userRole}
+                onDelete={handleDeleteService}
+              />
             ))}
           </div>
         )}
