@@ -2,48 +2,78 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 
 const CartContext = createContext();
 
-export function useCart() {
-  return useContext(CartContext);
-}
+export const useCart = () => useContext(CartContext);
 
-export function CartProvider({ children }) {
-  const [cartItems, setCartItems] = useState([]);
+export const CartProvider = ({ children }) => {
+  
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const localData = localStorage.getItem("kashtaCart");
+      return localData ? JSON.parse(localData) : [];
+    } catch (error) {
+      console.error("Could not parse cart data", error);
+      return [];
+    }
+  });
 
-  useEffect(() => {
-    const storedCart = localStorage.getItem("kashta-cart");
-    if (storedCart) {
-      setCartItems(JSON.parse(storedCart));
-    }
-  }, []);
+  
+  useEffect(() => {
+    localStorage.setItem("kashtaCart", JSON.stringify(cartItems));
+  }, [cartItems]);
 
-  useEffect(() => {
-    localStorage.setItem("kashta-cart", JSON.stringify(cartItems));
-  }, [cartItems]);
+  
+  const addToCart = (itemToAdd) => {
+    setCartItems((prevItems) => {
+      const existingItem = prevItems.find(
+        (item) => item.serviceId === itemToAdd.serviceId,
+      );
 
-  const addToCart = (item) => {
-    setCartItems((prevItems) => {
-      const newItem = { ...item, cartId: Date.now() };
-      return [...prevItems, newItem];
-    });
-    alert("!تمت إضافة الخدمة إلى السلة");
-  };
+      if (existingItem) {
+        
+        return prevItems.map((item) =>
+          item.serviceId === itemToAdd.serviceId
+            ? { ...item, quantity: item.quantity + itemToAdd.quantity }
+            : item,
+        );
+      } else {
+        
+        return [...prevItems, { ...itemToAdd, cartId: Date.now().toString() }];
+      }
+    });
+  };
 
-  const removeFromCart = (cartId) => {
-    setCartItems((prevItems) => {
-      return prevItems.filter((item) => item.cartId !== cartId);
-    });
-  };
 
-  const clearCart = () => {
-    setCartItems([]);
-  };
+  const updateCartItemQuantity = (cartId, newQuantity) => {
+    if (newQuantity < 1) {
+     
+      removeFromCart(cartId);
+      return;
+    }
+   
+    setCartItems((prevItems) =>
+      prevItems.map((item) =>
+        item.cartId === cartId ? { ...item, quantity: newQuantity } : item,
+      ),
+    );
+  };
 
-  const value = {
-    cartItems,
-    addToCart,
-    removeFromCart,
-    clearCart,
-  };
+  const removeFromCart = (cartId) => {
+    setCartItems((prevItems) =>
+      prevItems.filter((item) => item.cartId !== cartId),
+    );
+  };
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
-}
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
+  const value = {
+    cartItems,
+    addToCart,
+    removeFromCart,
+    clearCart,
+    updateCartItemQuantity,
+  };
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+};

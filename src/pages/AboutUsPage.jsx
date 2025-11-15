@@ -17,18 +17,19 @@ function AboutUsPage() {
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-second-text/90 mb-8 leading-relaxed max-w-3xl mx-auto">
-            "كشتة" وُجدت لحل مشكلة واحدة: جعل تجربة التخييم والرحلات البرية
+            كشتة وُجدت لحل مشكلة واحدة لجعل تجربة التخييم والرحلات البرية و البحرية
             سهلة، ممتعة، وبدون أي تعقيدات.
           </p>
         </div>
       </header>
 
-    <section className="bg-second-bg text-main-text container mx-auto px-6 py-20 rounded-t-3xl rounded-b-3xl shadow-xl -mt-12 relative z-20 mb-20">        <div className="max-w-4xl mx-auto">
+    <section className="bg-main-bg text-second-text py-20 -mt-12 relative z-20 mb-20">        
+      <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-main-text mb-4">
+            <h2 className="text-4xl md:text-5xl font-black text-second-text mb-4">
               ليش كشتة؟
             </h2>
-            <p className="text-xl text-main-text/70 max-w-2xl mx-auto">
+            <p className="text-xl text-second-text/90 max-w-2xl mx-auto">
               لأننا نؤمن بأن أجمل اللحظات تُصنع في الطبيعة، وليس في التحضير لها.
             </p>
           </div>
@@ -68,10 +69,10 @@ function AboutUsPage() {
           </div>
 
           <div className="container mx-auto px-6 text-center mt-16">
-            <h2 className="text-4xl md:text-5xl font-black text-main-text mb-6">
+            <h2 className="text-4xl md:text-5xl font-black text-second-text mb-6">
               مستعد لكشتتك الجاية؟
             </h2>
-            <p className="text-xl text-main-text/90 mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-second-text/90 mb-8 max-w-2xl mx-auto">
               تصفح خدماتنا الآن وابدأ التخطيط لرحلتك القادمة بدون أي هم.
             </p>
             <Link

@@ -59,10 +59,10 @@ function MyBookingsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold text-center text-black mb-8">طلباتي</h1>
+      <h1 className="text-3xl font-bold text-center text-second-text mb-8">طلباتي</h1>
 
       {bookings.length === 0 ? (
-        <p className="text-center text-black">لا يوجد لديك أي طلبات سابقة.</p>
+        <p className="text-center text-second-text">لا يوجد لديك أي طلبات سابقة.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {bookings.map((booking) => (

@@ -14,6 +14,7 @@ import { Link } from "react-router-dom";
 import { Sparkles, TrendingUp, MapPin, Users, Award } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import ServiceCard, { StarsReadOnly } from "../components/services/ServiceCard";
+import camping from "../assets/camping.jpg"; 
 
 const StatsSection = () => {
   const stats = [
@@ -27,10 +28,10 @@ const StatsSection = () => {
       {stats.map((stat, idx) => (
         <div
           key={idx}
-          className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center border border-white/20 hover:bg-white/20 transition-all duration-300"
+          className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center border border-white/20 hover:bg-second-bg/30 transition-all duration-300"
         >
           <stat.icon className="w-8 h-8 mx-auto mb-3 text-accent-orange" />
-          <div className="text-3xl font-black text-light-beige mb-1">
+          <div className="text-3xl font-black text-second-bg mb-1">
             {stat.value}
           </div>
           <div className="text-sm text-gray-200">{stat.label}</div>
@@ -126,9 +127,14 @@ function HomePage() {
   return (
     <div className="min-h-screen">
       <header className="relative bg-main-bg text-second-text py-24 md:py-32 overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-      
-        </div>
+         <div className="absolute inset-0">
+    <img
+      src={camping}
+      alt="camping_pic"
+      className="w-full h-full object-cover"
+    />
+    <div className="absolute inset-0 bg-black/50"></div>
+  </div>
 
         <div className="container mx-auto px-6 relative z-10">
           <div className="max-w-4xl mx-auto text-center mb-12">
@@ -180,43 +186,47 @@ function HomePage() {
         </div>
       </header>
 
-<section className="bg-second-bg text-main-text py-20 rounded-b-3xl shadow-xl -mt-12 relative z-20 mb-20">        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 bg-dark-brown/10 px-4 py-2 rounded-full mb-4">
-            <Award className="w-4 h-4 text-dark-brown" />
-            <span className="text-sm font-bold text-dark-brown">
-              خدمات مميزة
-            </span>
-          </div>
-          <h2 className="text-4xl md:text-5xl font-black text-main-text mb-4">
-            الخدمات المتاحة
-          </h2>
-          <p className="text-xl text-main-text/70 max-w-2xl mx-auto">
-            اختر من بين مجموعة واسعة من الخيام والمخيمات المجهزة بأحدث المرافق
-          </p>
-        </div>
 
-        {services.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-24 h-24 bg-second-bg rounded-full flex items-center justify-center mx-auto mb-4">
-              <MapPin className="w-12 h-12 text-main-text" />
-            </div>
-            <p className="text-xl text-main-text/60">
-              لا توجد خدمات متاحة حالياً
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {services.map((service) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                userRole={userRole}
-                onDelete={handleDeleteService}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+<section className="bg-main-bg text-second-text py-20 -mt-12 relative z-20 mb-20">
+  <div className="container mx-auto px-6">
+    <div className="text-center mb-16">
+      <div className="inline-flex items-center gap-2 bg-black px-4 py-2 rounded-full mb-4 shadow-sm">
+        <Award className="w-4 h-4 text-second-text" />
+        <span className="text-sm font-bold text-second-text">
+          خدمات مميزة
+        </span>
+      </div>
+      <h2 className="text-4xl md:text-5xl font-black text-second-text mb-4">
+        الخدمات المتاحة
+      </h2>
+      <p className="text-xl text-second-text/70 max-w-2xl mx-auto">
+        اختر من بين مجموعة واسعة من الخيام والمخيمات المجهزة بأحدث المرافق
+      </p>
+    </div>
+
+    {services.length === 0 ? (
+      <div className="text-center py-20">
+        <div className="w-24 h-24 bg-second-bg/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <MapPin className="w-12 h-12 text-second-text/40" />
+        </div>
+        <p className="text-xl text-second-text/60">
+          لا توجد خدمات متاحة حالياً
+        </p>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {services.map((service) => (
+          <ServiceCard
+            key={service.id}
+            service={service}
+            userRole={userRole}
+            onDelete={handleDeleteService}
+          />
+        ))}
+      </div>
+    )}
+  </div>
+</section>
 
       {testimonials.length > 0 && (
         <section className="bg-main-bg py-20 border-y border-main-text">

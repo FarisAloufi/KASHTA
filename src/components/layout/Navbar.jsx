@@ -74,7 +74,7 @@ function Navbar() {
           <Link
             to="/about-us"
             className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200"
-s        >
+       >
             من نحن
           </Link>
           <Link
