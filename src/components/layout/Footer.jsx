@@ -10,11 +10,7 @@ function Footer() {
       <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-8">
         {/* About Section */}
         <div>
-          <img
-            src={KashtaLogo}
-            alt="KASHTA Logo"
-            className="h-24 w-24 mb-4"
-          />
+          <img src={KashtaLogo} alt="KASHTA Logo" className="h-24 w-24 mb-4" />
           <p className="text-main-text/90">
             وجهتك الأولى لحجز أفضل الخيام والمستلزمات لرحلات التخييم.
           </p>

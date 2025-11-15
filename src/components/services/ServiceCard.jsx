@@ -32,7 +32,7 @@ function ServiceCard({ service, userRole, onDelete }) {
   };
 
   return (
-<div className="group relative bg-second-bg text-main-text rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 border border-main-text/10">
+    <div className="group relative bg-second-bg text-main-text rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 border border-main-text/10">
       {/* (4) زر الحذف */}
       {userRole === "provider" && (
         <button
@@ -80,10 +80,10 @@ function ServiceCard({ service, userRole, onDelete }) {
           </span>
         </div>
 
-<div className="flex justify-between items-center pt-5 border-t border-main-text">
+        <div className="flex justify-between items-center pt-5 border-t border-main-text">
           <div>
-<div className="text-sm text-main-text/70 mb-1 ">السعر يبدأ من</div>
-<span className="text-3xl font-black text-main-text">
+            <div className="text-sm text-main-text/70 mb-1 ">السعر يبدأ من</div>
+            <span className="text-3xl font-black text-main-text">
               {service.price} ريال
             </span>
           </div>

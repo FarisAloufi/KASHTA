@@ -11,9 +11,9 @@ function AboutUsPage() {
         </div>
         <div className="container mx-auto px-6 relative z-10 text-center">
           <h1 className="text-5xl md:text-7xl font-black mb-6 leading-tight">
-            ،نحن نجهز الكشتة
+            نحن نجهز الكشتة
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-main-accent to-black">
-              !وأنت تعيش المغامرة
+             وأنت تعيش المغامرة!
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-second-text/90 mb-8 leading-relaxed max-w-3xl mx-auto">
@@ -21,6 +21,7 @@ function AboutUsPage() {
             سهلة، ممتعة، وبدون أي تعقيدات.
           </p>
         </div>
+        
       </header>
 
     <section className="bg-main-bg text-second-text py-20 -mt-12 relative z-20 mb-20">        

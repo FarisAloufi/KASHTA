@@ -44,9 +44,7 @@ function ManageBookingsPage() {
         status: newStatus,
       });
       setBookings((prevBookings) =>
-        prevBookings.map((b) =>
-          b.id === id ? { ...b, status: newStatus } : b,
-        ),
+        prevBookings.map((b) => (b.id === id ? { ...b, status: newStatus } : b))
       );
     } catch (err) {
       console.error("خطأ في تحديث الحالة:", err);
