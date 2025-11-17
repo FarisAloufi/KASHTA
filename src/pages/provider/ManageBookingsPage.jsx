@@ -51,6 +51,25 @@ function ManageBookingsPage() {
     }
   };
 
+
+  // فلترة الطلبات وترتيبها
+  // الأقسام النشطة ترتيب تصاعدي 
+  const pendingBookings = bookings.filter((b) => b.status === "pending")
+    .sort((a, b) => new Date(a.bookingDate) - new Date(b.bookingDate));
+
+  const confirmedBookings = bookings.filter((b) => b.status === "confirmed")
+    .sort((a, b) => new Date(a.bookingDate) - new Date(b.bookingDate));
+
+  const readyBookings = bookings.filter((b) => b.status === "ready")
+    .sort((a, b) => new Date(a.bookingDate) - new Date(b.bookingDate));
+  
+  // الأقسام المنتهية ترتيب تنازلي
+  const completedBookings = bookings.filter((b) => b.status === "completed")
+    .sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate));
+
+  const cancelledBookings = bookings.filter((b) => b.status === "cancelled")
+    .sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate));
+
   if (loading) {
     return (
       <h1 className="text-center text-2xl p-10">جاري تحميل كل الطلبات...</h1>
@@ -59,52 +78,124 @@ function ManageBookingsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold text-center text-black mb-8">
+      <h1 className="text-3xl font-bold text-center text-second-text mb-8">
         إدارة الطلبات
       </h1>
 
       {bookings.length === 0 ? (
         <p className="text-center text-black">لا توجد أي طلبات حالياً.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {bookings.map((booking) => (
-            <BookingCard key={booking.id} booking={booking}>
-              {booking.status === "pending" && (
-                <div className="flex justify-between gap-2">
-                  <button
-                    onClick={() => handleUpdateStatus(booking.id, "confirmed")}
-                    className="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
-                  >
-                    قبول (قيد التجهيز)
-                  </button>
-                  <button
-                    onClick={() => handleUpdateStatus(booking.id, "cancelled")}
-                    className="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
-                  >
-                    رفض
-                  </button>
-                </div>
-              )}
+        <div className="flex overflow-x-auto gap-6 pb-4">
 
-              {booking.status === "confirmed" && (
-                <button
-                  onClick={() => handleUpdateStatus(booking.id, "ready")}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-                >
-                  الطلب جاهز (في الطريق)
-                </button>
+          {/* === العمود 1: قيد الانتظار === */}
+          <div className="flex-shrink-0 w-80 bg-gray-100 p-4 rounded-lg shadow">
+            <h2 className="font-bold text-lg mb-4 text-black">
+              قيد الانتظار ({pendingBookings.length})
+            </h2>
+            <div className="flex flex-col gap-4">
+              {pendingBookings.length === 0 ? (
+                <p className="text-gray-500">لا توجد طلبات</p>
+              ) : (
+                pendingBookings.map((booking) => (
+                  <BookingCard key={booking.id} booking={booking}>
+                    <div className="flex justify-between gap-2">
+                      <button
+                        onClick={() => handleUpdateStatus(booking.id, "confirmed")}
+                        className="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
+                      >
+                        قبول (قيد التجهيز)
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(booking.id, "cancelled")}
+                        className="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
+                      >
+                        رفض
+                      </button>
+                    </div>
+                  </BookingCard>
+                ))
               )}
+            </div>
+          </div>
 
-              {booking.status === "ready" && (
-                <button
-                  onClick={() => handleUpdateStatus(booking.id, "completed")}
-                  className="w-full bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700"
-                >
-                  تم التسليم (اكتمل)
-                </button>
+          {/* === العمود 2: قيد التجهيز === */}
+          <div className="flex-shrink-0 w-80 bg-gray-100 p-4 rounded-lg shadow">
+            <h2 className="font-bold text-lg mb-4 text-black">
+              قيد التجهيز ({confirmedBookings.length})
+            </h2>
+            <div className="flex flex-col gap-4">
+              {confirmedBookings.length === 0 ? (
+                <p className="text-gray-500">لا توجد طلبات</p>
+              ) : (
+                confirmedBookings.map((booking) => (
+                  <BookingCard key={booking.id} booking={booking}>
+                    <button
+                      onClick={() => handleUpdateStatus(booking.id, "ready")}
+                      className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+                    >
+                      الطلب جاهز (في الطريق)
+                    </button>
+                  </BookingCard>
+                ))
               )}
-            </BookingCard>
-          ))}
+            </div>
+          </div>
+
+          {/* === العمود 3: في الطريق === */}
+          <div className="flex-shrink-0 w-80 bg-gray-100 p-4 rounded-lg shadow">
+            <h2 className="font-bold text-lg mb-4 text-black">
+              في الطريق ({readyBookings.length})
+            </h2>
+            <div className="flex flex-col gap-4">
+              {readyBookings.length === 0 ? (
+                <p className="text-gray-500">لا توجد طلبات</p>
+              ) : (
+                readyBookings.map((booking) => (
+                  <BookingCard key={booking.id} booking={booking}>
+                    <button
+                      onClick={() => handleUpdateStatus(booking.id, "completed")}
+                      className="w-full bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700"
+                    >
+                      تم التسليم (اكتمل)
+                    </button>
+                  </BookingCard>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* === العمود 4: مكتمل === */}
+          <div className="flex-shrink-0 w-80 bg-gray-100 p-4 rounded-lg shadow">
+            <h2 className="font-bold text-lg mb-4 text-black">
+              مكتمل ({completedBookings.length})
+            </h2>
+            <div className="flex flex-col gap-4">
+              {completedBookings.length === 0 ? (
+                <p className="text-gray-500">لا توجد طلبات</p>
+              ) : (
+                completedBookings.map((booking) => (
+                  <BookingCard key={booking.id} booking={booking} />
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* === العمود 5: ملغي === */}
+          <div className="flex-shrink-0 w-80 bg-gray-100 p-4 rounded-lg shadow">
+            <h2 className="font-bold text-lg mb-4 text-black">
+              ملغي ({cancelledBookings.length})
+            </h2>
+            <div className="flex flex-col gap-4">
+              {cancelledBookings.length === 0 ? (
+                <p className="text-gray-500">لا توجد طلبات</p>
+              ) : (
+                cancelledBookings.map((booking) => (
+                  <BookingCard key={booking.id} booking={booking} />
+                ))
+              )}
+            </div>
+          </div>
+
         </div>
       )}
     </div>
