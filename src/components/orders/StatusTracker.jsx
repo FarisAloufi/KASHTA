@@ -25,7 +25,7 @@ const steps = [
   },
   {
     status: "completed",
-    text: "!وصل بالسلامة. استمتع بالكشتة",
+    text: "وصل بالسلامة. استمتع بالكشتة",
     icon: <FaRegSmileBeam />,
   },
 ];

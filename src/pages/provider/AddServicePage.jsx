@@ -79,7 +79,7 @@ function AddServicePage() {
               className="block text-main-text text-base font-semibold mb-2 text-right"
               htmlFor="name"
             >
-              اسم الخدمة (مثل: خيمة ملكية)
+              اسم الخدمة (مثل: خيمة )
             </label>
             <input
               className="shadow appearance-none border rounded-xl w-full py-3 px-4 text-black leading-tight focus:outline-none focus:ring-2 focus:ring-black transition"
