@@ -11,7 +11,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { Link } from "react-router-dom";
-import { Sparkles, TrendingUp, MapPin, Users, Award } from "lucide-react";
+import { Sparkles, TrendingUp, MapPin, Users, Award,Loader} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import ServiceCard, { StarsReadOnly } from "../components/services/ServiceCard";
 import camping from "../assets/camping.jpg";
@@ -52,17 +52,17 @@ function HomePage() {
       setLoading(true);
       try {
         const servicesQuery = query(
-            collection(db, "services"), 
-            limit(6)
+          collection(db, "services"),
+          limit(6)
         );
-        
+
         const testimonialsQuery = query(
           collection(db, "ratings"),
           where("rating", "==", 5),
+          where("serviceId", "==", "GENERAL_SITE_RATING"),
           orderBy("createdAt", "desc"),
           limit(3)
         );
-
 
         const [servicesSnapshot, testimonialsSnapshot] = await Promise.all([
           getDocs(servicesQuery),
@@ -79,18 +79,25 @@ function HomePage() {
             const ratingsRef = collection(db, "ratings");
             const q = query(ratingsRef, where("serviceId", "==", service.id));
             const ratingsSnapshot = await getDocs(q);
-            
+
             let totalRating = 0;
+            let validRatingsCount = 0;
+
             ratingsSnapshot.forEach((doc) => {
-              totalRating += doc.data().rating;
+              const r = doc.data().rating;
+              if (r && r > 0) {
+                totalRating += r;
+                validRatingsCount++;
+              }
             });
-            const count = ratingsSnapshot.size;
-            const average = count > 0 ? (totalRating / count).toFixed(1) : 0;
-            
+
+
+            const average = validRatingsCount > 0 ? (totalRating / validRatingsCount).toFixed(1) : 0;
+
             return {
               ...service,
               rating: parseFloat(average),
-              ratingCount: count,
+              ratingCount: validRatingsCount,
             };
           })
         );
@@ -122,12 +129,10 @@ function HomePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-main-bg">
+      <div className="flex justify-center items-center h-screen bg-main-bg">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-main-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h1 className="text-2xl font-bold text-second-text">
-            جاري التحميل ...
-          </h1>
+          <Loader className="animate-spin text-second-text mx-auto mb-4" size={48} />
+          <p className="text-second-text">جاري التحميل ...</p>
         </div>
       </div>
     );
@@ -135,12 +140,13 @@ function HomePage() {
 
   return (
     <div className="min-h-screen">
+
       <header className="relative bg-main-bg text-second-text py-24 md:py-32 overflow-hidden">
         <div className="absolute inset-0">
           <img
             src={camping}
             alt="camping_pic"
-            fetchPriority="high" 
+            fetchPriority="high"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black/50"></div>
@@ -157,8 +163,8 @@ function HomePage() {
 
             <h1 className="text-5xl md:text-7xl font-black mb-6 leading-tight">
               جهز كشتتك
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-main-accent to-white">
-               بخطوة واحدة!
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-main-accent to-black">
+                بخطوة واحدة!
               </span>
             </h1>
 
@@ -173,7 +179,7 @@ function HomePage() {
               </Link>
 
               <Link to="/about-us">
-                <button className="bg-white/20 backdrop-blur-md text-white border border-white/30 px-10 py-4 rounded-2xl font-black text-lg shadow-2xl hover:bg-white/30 transition-all duration-300">
+                <button className="bg-black text-white px-10 py-4 rounded-2xl font-black text-lg shadow-2xl hover:shadow-gray-800/50 hover:scale-105 transition-all duration-300">
                   كيف يعمل؟
                 </button>
               </Link>
@@ -186,7 +192,7 @@ function HomePage() {
       <section className="bg-main-bg text-second-text py-20 -mt-12 relative z-20 mb-20">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-black px-4 py-2 rounded-full mb-4 shadow-sm">
+            <div className="inline-flex items-center gap-2 bg-main-text px-4 py-2 rounded-full mb-4 shadow-sm">
               <Award className="w-4 h-4 text-second-text" />
               <span className="text-sm font-bold text-second-text">
                 خدمات مميزة
@@ -210,7 +216,7 @@ function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {services.map((service) => (
                 <ServiceCard
                   key={service.id}
@@ -224,10 +230,10 @@ function HomePage() {
 
           <div className="text-center mt-12">
             <Link to="/services">
-                <button className="text-main-accent font-bold text-lg hover:underline flex items-center justify-center gap-2 mx-auto">
-                    عرض جميع الخدمات والباكجات
-                    <TrendingUp size={20} />
-                </button>
+              <button className="text-main-accent font-bold text-lg hover:underline flex items-center justify-center gap-2 mx-auto transition-colors">
+                عرض جميع الخدمات والباكجات
+                <TrendingUp size={20} />
+              </button>
             </Link>
           </div>
 
@@ -235,10 +241,10 @@ function HomePage() {
       </section>
 
       {testimonials.length > 0 && (
-        <section className="bg-main-bg py-20 border-y border-main-text/10">
+        <section className="bg-main-bg py-20 border-y border-second-text/10">
           <div className="container mx-auto px-6">
             <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 bg-black px-4 py-2 rounded-full mb-4 shadow-sm">
+              <div className="inline-flex items-center gap-2 bg-main-text px-4 py-2 rounded-full mb-4 shadow-sm">
                 <Users className="w-4 h-4 text-second-text" />
                 <span className="text-sm font-bold text-second-text">
                   آراء العملاء
@@ -294,6 +300,7 @@ function HomePage() {
 
           <Link to="/services">
             <button className="bg-black text-white px-10 py-4 rounded-2xl font-black text-lg shadow-2xl hover:shadow-gray-800/50 hover:scale-105 transition-all duration-300">
+
               ابدأ الحجز الآن
             </button>
           </Link>

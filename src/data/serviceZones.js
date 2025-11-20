@@ -1,9 +1,9 @@
 import * as turf from "@turf/turf";
-import saudiGeo from "./saudi.geo.json";
+import jeddahGeo from "./jeddah.geo.json"; 
 
 export function isLocationAllowed(lat, lng) {
-  const point = turf.point([lng, lat]);
-  const polygon = saudiGeo.features[0];
+  const point = turf.point([lng, lat]); 
+  const polygon = jeddahGeo.features[0]; 
 
   return turf.booleanPointInPolygon(point, polygon);
 }

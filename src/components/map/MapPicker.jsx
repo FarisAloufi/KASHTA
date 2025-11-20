@@ -17,7 +17,8 @@ const containerStyle = {
   height: "400px",
   borderRadius: "8px",
 };
-const center = [24.7136, 46.6753];
+
+const center = [21.543333, 39.172778]; 
 
 function MapClickHandler({ onLocationChange, setMarkerPosition, mode }) {
   useMapEvents({
@@ -32,7 +33,8 @@ function MapClickHandler({ onLocationChange, setMarkerPosition, mode }) {
           setMarkerPosition(newPos);
           onLocationChange({ lat: newPos[0], lng: newPos[1] });
         } else {
-          alert("عذراً، هذه المنطقة خارج نطاق الخدمة حالياً.");
+ 
+          alert("عذراً، خدماتنا متاحة حالياً داخل مدينة جدة فقط.");
         }
       }
     },
@@ -50,7 +52,7 @@ function SearchField({ setMarkerPosition, onLocationChange, mode }) {
       style: "bar",
       autoClose: true,
       keepResult: true,
-      searchLabel: "ابحث عن حي أو مكان...",
+      searchLabel: "ابحث عن حي أو مكان..", 
     });
     map.addControl(searchControl);
 
@@ -65,7 +67,7 @@ function SearchField({ setMarkerPosition, onLocationChange, mode }) {
           setMarkerPosition(newPos);
           onLocationChange({ lat: newPos[0], lng: newPos[1] });
         } else {
-          alert("عذراً، البحث عن هذه المنطقة خارج نطاق الخدمة.");
+          alert("عذراً، الموقع المحدد خارج نطاق مدينة جدة.");
         }
       }
     };
@@ -86,7 +88,7 @@ function MapPicker({ onLocationChange, mode = "booking" }) {
   return (
     <MapContainer
       center={center}
-      zoom={10}
+      zoom={11}
       style={containerStyle}
       zoomControl={true}
     >

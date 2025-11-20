@@ -15,6 +15,7 @@ import ManageBookingsPage from "./pages/provider/ManageBookingsPage";
 import ServicesPage from "./pages/ServicesPage";
 import AboutUsPage from "./pages/AboutUsPage";
 import CartPage from "./pages/CartPage";
+import ProfilePage from "./pages/ProfilePage";
 
 // Routes
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -35,9 +36,11 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/service/:id" element={<ServiceDetailPage />} />
 
+
           <Route element={<ProtectedRoute />}>
             <Route path="/my-bookings" element={<MyBookingsPage />} />
             <Route path="/booking/:id" element={<BookingDetailPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
           <Route element={<ProviderRoute />}>

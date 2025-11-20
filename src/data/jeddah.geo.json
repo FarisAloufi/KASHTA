@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Jeddah Zone" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [38.959417, 21.865032], 
+            [39.317846, 21.865032], 
+            [39.396124, 21.133953], 
+            [39.059668, 21.133953], 
+            [38.959417, 21.865032]
+          ]
+        ]
+      }
+    }
+  ]
+}

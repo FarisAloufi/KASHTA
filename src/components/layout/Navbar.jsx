@@ -15,7 +15,7 @@ import {
 import KashtaLogo from "../../assets/Kashtalogo.png";
 
 function Navbar() {
-  const { currentUser, userRole } = useAuth();
+  const { currentUser, userRole, userData } = useAuth();
   const { cartItems } = useCart();
   const navigate = useNavigate();
 
@@ -39,65 +39,59 @@ function Navbar() {
         </Link>
 
         <div className="flex items-center gap-6">
-          <Link
-            to="/"
-            className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200"
-          >
+          <Link to="/" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200">
             الرئيسية
           </Link>
-          <Link
-            to="/services"
-            className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200"
-          >
+          <Link to="/services" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200">
             الخدمات
           </Link>
-          <Link
-            to="/about-us"
-            className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200"
-          >
+          <Link to="/about-us" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200">
             من نحن
           </Link>
+
           {currentUser && userRole === "provider" && (
             <>
-              <Link
-                to="/manage-bookings"
-                className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1"
-              >
-                إدارة الحجوزات
-                <FaTh size={18} />
+              <Link to="/manage-bookings" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1">
+                إدارة الحجوزات <FaTh size={18} />
               </Link>
-              <Link
-                to="/add-service"
-                className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1"
-              >
-                إضافة خدمة
-                <FaPlusCircle size={18} />{" "}
+              <Link to="/add-service" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1">
+                إضافة خدمة <FaPlusCircle size={18} />
               </Link>
             </>
           )}
+
           {currentUser && userRole === "customer" && (
-            <Link
-              to="/my-bookings"
-              className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1"
-            >
-              حجوزاتي
-              <FaCalendarAlt size={18} />
+            <Link to="/my-bookings" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1">
+              حجوزاتي <FaCalendarAlt size={18} />
             </Link>
           )}
         </div>
 
         <div className="flex items-center gap-4">
-          <Link
-            to="/cart"
-            className="relative text-main-text hover:text-main-accent transition-colors duration-200"
-          >
-            <FaShoppingCart size={24} />
-            {cartItems.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                {cartItems.length}
-              </span>
-            )}
-          </Link>
+
+          {currentUser && (
+            <Link to="/cart" className="relative text-main-text hover:text-main-accent transition-colors duration-200">
+              <FaShoppingCart size={24} />
+              {cartItems.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                  {cartItems.length}
+                </span>
+              )}
+            </Link>
+          )}
+
+          {currentUser && (
+            <Link
+              to="/profile"
+              className="relative text-main-text hover:text-main-accent transition-colors duration-200"
+              title="الملف الشخصي"
+            >
+              <div className="w-9 h-9 bg-main-text text-second-bg rounded-full flex items-center justify-center font-bold border-2 border-main-text hover:border-main-accent transition-colors text-lg">
+                {userData?.name ? userData.name.charAt(0).toUpperCase() : currentUser.email.charAt(0).toUpperCase()}
+              </div>
+            </Link>
+          )}
+
 
           {currentUser ? (
             <button

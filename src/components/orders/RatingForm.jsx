@@ -25,7 +25,7 @@ const StarRating = ({ rating, setRating }) => {
               className="hidden"
             />
             <FaStar
-              className="cursor-pointer"
+              className="cursor-pointer transition-colors hover:scale-110"
               color={ratingValue <= rating ? "#ffc107" : "#e4e5e9"}
               size={40}
             />
@@ -57,26 +57,34 @@ function RatingForm({ booking }) {
       setError("خطأ: لم يتم العثور على بيانات المستخدم.");
       return;
     }
+
     setLoading(true);
 
     try {
+      // --- التعديل هنا: حفظ التقييم كتقييم عام للموقع مرة واحدة فقط ---
+      
       await addDoc(collection(db, "ratings"), {
         userId: userData.uid,
-        userName: userData.name,
-        serviceId: booking.serviceId,
-        serviceName: booking.serviceName,
-        bookingId: booking.id,
+        userName: userData.name || "عميل",
+        
+        // نضع ID ثابت أو مميز ليدل على أنه تقييم للموقع وليس لخدمة محددة
+        serviceId: "GENERAL_SITE_RATING", 
+        serviceName: "تقييم عام للموقع",
+        
+        bookingId: booking.id, // ربط التقييم برقم الحجز كمرجع
         rating: rating,
         comment: comment,
         createdAt: serverTimestamp(),
+        providerReply: null
       });
 
+      // تحديث حالة الطلب إلى "تم التقييم"
       const bookingDocRef = doc(db, "bookings", booking.id);
       await updateDoc(bookingDocRef, {
         rated: true,
       });
 
-      setSuccess("شكراً على تقييمك!");
+      setSuccess("شكراً! تم إرسال تقييمك للموقع بنجاح.");
       setLoading(false);
     } catch (err) {
       console.error("خطأ في إرسال التقييم:", err);
@@ -87,8 +95,8 @@ function RatingForm({ booking }) {
 
   if (success) {
     return (
-      <div className="border-t-2 border-dashed border-gray-300 pt-6 mt-6">
-        <p className="bg-green-100 text-green-700 p-4 rounded text-center font-bold">
+      <div className="border-t-2 border-dashed border-main-text/20 pt-6 mt-6">
+        <p className="bg-green-100 text-green-700 p-4 rounded-xl text-center font-bold shadow-sm">
           {success}
         </p>
       </div>
@@ -96,39 +104,39 @@ function RatingForm({ booking }) {
   }
 
   return (
-    <div className="border-t-2 border-dashed border-gray-300 pt-6 mt-6">
-      <h3 className="text-2xl font-bold text-center mb-4">
-        ما رأيك في الخدمة؟
+    <div className="border-t-2 border-dashed border-main-text/20 pt-6 mt-6">
+      <h3 className="text-2xl font-bold text-center mb-4 text-main-text">
+        كيف كانت تجربتك مع كشتة؟
       </h3>
 
       {error && (
-        <p className="bg-red-100 text-red-700 p-3 rounded mb-4 text-center">
+        <p className="bg-red-100 text-red-700 p-3 rounded-xl mb-4 text-center border border-red-200">
           {error}
         </p>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="bg-second-bg/20 p-6 rounded-2xl border border-main-text/10">
         <StarRating rating={rating} setRating={setRating} />
 
         <div className="mb-4">
           <label
-            className="block text-gray-700 text-sm font-bold mb-2 text-right"
+            className="block text-main-text text-sm font-bold mb-2 text-right"
             htmlFor="comment"
           >
-            اكتب تعليقك
+            اكتب رأيك في الموقع والخدمة بشكل عام
           </label>
           <textarea
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            className="shadow-sm appearance-none border border-main-text/20 rounded-xl w-full py-3 px-4 text-main-text leading-tight focus:outline-none focus:border-main-accent focus:ring-1 focus:ring-main-accent transition-all"
             id="comment"
             rows="4"
-            placeholder="كيف كانت الكشتة؟..."
+            placeholder="تجربة ممتازة، الموقع سهل..."
             value={comment}
             onChange={(e) => setComment(e.target.value)}
           />
         </div>
 
         <button
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:bg-gray-400"
+          className="w-full bg-main-text text-second-text font-bold py-3 px-4 rounded-xl hover:bg-main-accent hover:text-main-text transition-all shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
           type="submit"
           disabled={loading}
         >
