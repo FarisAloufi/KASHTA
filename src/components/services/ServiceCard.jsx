@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Star, Award, Trash2, ShoppingCart, Plus, Minus } from "lucide-react";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
+import ProviderBadge from "./ProviderInfoCard";
 
 export const StarsReadOnly = ({ rating, size = 14 }) => {
   return (
@@ -24,10 +26,15 @@ export const StarsReadOnly = ({ rating, size = 14 }) => {
 
 function ServiceCard({ service, userRole, onDelete }) {
   const { cartItems, addToCart, updateCartItemQuantity, removeFromCart } = useCart();
-
+  const { currentUser } = useAuth();
 
   const cartItem = cartItems.find((item) => item.serviceId === service.id);
   const quantity = cartItem ? cartItem.quantity : 0;
+
+  const showDeleteButton = onDelete && (
+    userRole === "admin" ||
+    (userRole === "provider" && currentUser && service.providerId === currentUser.uid)
+  );
 
   const handleDeleteClick = (e) => {
     e.preventDefault();
@@ -40,33 +47,29 @@ function ServiceCard({ service, userRole, onDelete }) {
   const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     const itemToAdd = {
       serviceId: service.id,
       serviceName: service.name,
       servicePrice: Number(service.price),
       imageUrl: service.imageUrl,
       quantity: 1,
-      type: service.isPackage ? 'package' : 'service'
+      type: service.isPackage ? 'package' : 'service',
+      providerId: service.providerId
     };
     addToCart(itemToAdd);
   };
 
-
   const handleIncrement = (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     const idToUpdate = cartItem?.cartId || service.id;
     updateCartItemQuantity(idToUpdate, quantity + 1);
   };
-
 
   const handleDecrement = (e) => {
     e.preventDefault();
     e.stopPropagation();
     const idToUpdate = cartItem?.cartId || service.id;
-
     if (quantity > 1) {
       updateCartItemQuantity(idToUpdate, quantity - 1);
     } else {
@@ -77,10 +80,12 @@ function ServiceCard({ service, userRole, onDelete }) {
   return (
     <div className="group relative bg-second-bg text-main-text rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-main-text/10 max-w-sm mx-auto w-full flex flex-col">
 
-      {userRole === "provider" && (
+
+      {showDeleteButton && (
         <button
           onClick={handleDeleteClick}
           className="absolute top-2 left-2 z-10 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition shadow-md"
+          aria-label="Delete service"
         >
           <Trash2 size={16} />
         </button>
@@ -104,6 +109,8 @@ function ServiceCard({ service, userRole, onDelete }) {
           )}
         </div>
       </Link>
+
+
 
       <div className="p-4 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-1">
@@ -134,24 +141,14 @@ function ServiceCard({ service, userRole, onDelete }) {
             </span>
           </div>
 
-
-          {userRole !== "provider" ? (
-            // (1) إذا كان عميلاً: يظهر أزرار التحكم بالسلة
+          {userRole !== 'admin' && (
             quantity > 0 ? (
               <div className="flex items-center bg-main-text/10 rounded-xl p-1 shadow-inner">
-                <button
-                  onClick={handleIncrement}
-                  className="w-8 h-8 flex items-center justify-center bg-main-text text-second-bg rounded-lg hover:bg-main-accent transition shadow-sm"
-                >
+                <button onClick={handleIncrement} className="w-8 h-8 flex items-center justify-center bg-main-text text-second-bg rounded-lg hover:bg-main-accent transition shadow-sm">
                   <Plus size={16} strokeWidth={3} />
                 </button>
-
                 <span className="font-black text-main-text w-8 text-center text-lg">{quantity}</span>
-
-                <button
-                  onClick={handleDecrement}
-                  className="w-8 h-8 flex items-center justify-center bg-main-text text-second-bg rounded-lg hover:bg-main-accent transition shadow-sm"
-                >
+                <button onClick={handleDecrement} className="w-8 h-8 flex items-center justify-center bg-main-text text-second-bg rounded-lg hover:bg-red-600 transition shadow-sm">
                   {quantity === 1 ? <Trash2 size={16} /> : <Minus size={16} strokeWidth={3} />}
                 </button>
               </div>
@@ -164,12 +161,8 @@ function ServiceCard({ service, userRole, onDelete }) {
                 أضف للسلة
               </button>
             )
-          ) : (
-            // (2) إذا كان مقدم خدمة: يظهر نص "عرض فقط"
-            <span className="text-xs font-bold text-main-text/50 bg-main-text/5 px-3 py-2 rounded-lg cursor-not-allowed border border-main-text/10">
-              عرض فقط
-            </span>
           )}
+
         </div>
       </div>
     </div>

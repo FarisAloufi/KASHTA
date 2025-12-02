@@ -1,50 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { db } from "../firebase/firebaseConfig";
-import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  documentId,
-  updateDoc,
-  addDoc,
-  serverTimestamp
-} from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, orderBy, addDoc, updateDoc, serverTimestamp, documentId } from "firebase/firestore";
 import { FaStar } from "react-icons/fa";
-import { 
-  Plus, Minus, ShoppingCart, ArrowRight, Star, CheckCircle, Loader, Package, 
-  MessageCircle, Send, Reply, LogIn 
-} from "lucide-react";
+import { Plus, Minus, ShoppingCart, ArrowRight, Star, CheckCircle, Loader, Package, MessageCircle, Send, Reply, LogIn, Briefcase, ShieldCheck, Sparkles } from "lucide-react";
 import { subscribeToAverageRating } from "../services/ratingService";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import ServiceCard from "../components/services/ServiceCard";
+import ProviderInfoCard from "../components/services/ProviderInfoCard";
 
-import ServiceCard from "../components/services/ServiceCard"; 
-
+// === Helper Functions ===
 const formatTimeAgo = (timestamp) => {
   if (!timestamp) return "";
-  
   let date;
-  if (timestamp?.toDate) {
-    date = timestamp.toDate();
-  } 
-  else if (timestamp instanceof Date) {
-    date = timestamp;
-  } 
-  else if (timestamp.seconds) {
-    date = new Date(timestamp.seconds * 1000);
-  }
-  else {
-    return ""; 
-  }
-
+  if (timestamp?.toDate) date = timestamp.toDate();
+  else if (timestamp instanceof Date) date = timestamp;
+  else if (timestamp.seconds) date = new Date(timestamp.seconds * 1000);
+  else return "";
   const now = new Date();
   const seconds = Math.floor((now - date) / 1000);
-  
   let interval = seconds / 31536000;
   if (interval >= 1) return "منذ " + Math.floor(interval) + " سنة";
   interval = seconds / 2592000;
@@ -60,41 +35,17 @@ const formatTimeAgo = (timestamp) => {
   return "الآن";
 };
 
-// 1. مكون نجوم قابل للتفاعل (للإدخال)
-const StarRatingInput = ({ rating, setRating, size = 30 }) => {
-  return (
-    <div className="flex space-x-2 space-x-reverse">
-      {[...Array(5)].map((_, index) => {
-        const ratingValue = index + 1;
-        return (
-          <label key={index} className="cursor-pointer group transition-transform hover:scale-110">
-            <input 
-              type="radio" 
-              className="hidden" 
-              value={ratingValue} 
-              onClick={() => setRating(ratingValue)}
-            />
-            <FaStar
-              size={size}
-              className={`transition-colors duration-200 ${ratingValue <= rating ? "text-main-accent" : "text-gray-300 group-hover:text-main-accent/50"}`}
-            />
-          </label>
-        );
-      })}
-    </div>
-  );
-};
-
 const StarsReadOnly = ({ rating, size = 16 }) => {
   return (
-    <div className="flex space-x-1 space-x-reverse">
+    <div className="flex gap-0.5" dir="rtl">
       {[...Array(5)].map((_, index) => {
         const ratingValue = index + 1;
         return (
-          <FaStar
+          <Star
             key={ratingValue}
+            fill={ratingValue <= rating ? "#ffc107" : "none"}
+            stroke={ratingValue <= rating ? "#ffc107" : "#d1d5db"}
             size={size}
-            className={ratingValue <= rating ? "text-main-accent" : "text-gray-300"}
           />
         );
       })}
@@ -112,7 +63,6 @@ function ServiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isPackage, setIsPackage] = useState(false);
-
   const [bookingError, setBookingError] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
 
@@ -120,18 +70,18 @@ function ServiceDetailPage() {
   const [individualRatings, setIndividualRatings] = useState([]);
   const [similarServices, setSimilarServices] = useState([]);
 
-  const [replyText, setReplyText] = useState(""); 
-  const [activeReplyId, setActiveReplyId] = useState(null); 
+  // Comment & Reply states
+  const [replyText, setReplyText] = useState("");
+  const [activeReplyId, setActiveReplyId] = useState(null);
   const [submittingReply, setSubmittingReply] = useState(false);
-
   const [newCommentText, setNewCommentText] = useState("");
-  const [newRatingValue, setNewRatingValue] = useState(0); 
+  const [newRatingValue, setNewRatingValue] = useState(0);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [hasPurchased, setHasPurchased] = useState(false);
+  const [hasRatedBefore, setHasRatedBefore] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    
     const fetchAllData = async () => {
       try {
         const ratingsRef = collection(db, "ratings");
@@ -143,39 +93,49 @@ function ServiceDetailPage() {
         const ratingsPromise = getDocs(ratingsQuery);
 
         if (currentUser) {
-           const bookingsRef = collection(db, "bookings");
-        
-           const bookingsQuery = query(
-              bookingsRef, 
-              where("userId", "==", currentUser.uid)
-           );
-           getDocs(bookingsQuery).then((snapshot) => {
-              let found = false;
-              snapshot.forEach(doc => {
-                  const data = doc.data();
-                 
-                  if (data.status === 'completed' && data.services?.some(item => item.serviceId === id)) {
-                      found = true;
-                  }
-              });
-              setHasPurchased(found);
-           });
+          const bookingsRef = collection(db, "bookings");
+          const bookingsQuery = query(
+            bookingsRef,
+            where("userId", "==", currentUser.uid)
+          );
+          getDocs(bookingsQuery).then((snapshot) => {
+            let found = false;
+            snapshot.forEach(doc => {
+              const data = doc.data();
+              if (data.status === 'completed' && data.services?.some(item => item.serviceId === id)) {
+                found = true;
+              }
+            });
+            setHasPurchased(found);
+          });
+
+          const userRatingQuery = query(
+            collection(db, "ratings"),
+            where("serviceId", "==", id),
+            where("userId", "==", currentUser.uid),
+            where("rating", ">", 0)
+          );
+          getDocs(userRatingQuery).then((snapshot) => {
+            if (!snapshot.empty) {
+              setHasRatedBefore(true);
+            }
+          });
         }
 
         const history = JSON.parse(localStorage.getItem("recentlyViewed")) || [];
         const filteredHistory = history.filter((itemId) => itemId !== id);
         const newHistory = [id, ...filteredHistory];
         localStorage.setItem("recentlyViewed", JSON.stringify(newHistory.slice(0, 5)));
-        
+
         const historyToFetch = newHistory.filter((itemId) => itemId !== id).slice(0, 3);
-        let similarPromise = Promise.resolve([]); 
+        let similarPromise = Promise.resolve([]);
 
         if (historyToFetch.length > 0) {
-            const similarQuery = query(
-              collection(db, "services"),
-              where(documentId(), "in", historyToFetch) 
-            );
-            similarPromise = getDocs(similarQuery);
+          const similarQuery = query(
+            collection(db, "services"),
+            where(documentId(), "in", historyToFetch)
+          );
+          similarPromise = getDocs(similarQuery);
         }
 
         let docRef = doc(db, "services", id);
@@ -191,7 +151,6 @@ function ServiceDetailPage() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setIsPackage(foundIsPackage);
-          
           const normalizedData = {
             id: docSnap.id,
             ...data,
@@ -200,6 +159,7 @@ function ServiceDetailPage() {
             description: data.description,
             features: data.features || data.items || [],
             imageUrl: data.imageUrl,
+            providerId: data.providerId
           };
           setService(normalizedData);
 
@@ -207,29 +167,33 @@ function ServiceDetailPage() {
             ratingsPromise,
             similarPromise
           ]);
-          
+
           setIndividualRatings(
             ratingsSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
           );
 
-          if (Array.isArray(similarSnap) === false && similarSnap.docs) { 
-             const similarServicesData = similarSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-             const servicesWithRatings = await Promise.all(
-               similarServicesData.map(async (simService) => {
-                 const serviceRatingsRef = collection(db, "ratings");
-                 const q = query(serviceRatingsRef, where("serviceId", "==", simService.id));
-                 const ratingsSnapshot = await getDocs(q);
-                 let totalRating = 0;
-                 ratingsSnapshot.forEach((doc) => { totalRating += doc.data().rating; });
-                 const count = ratingsSnapshot.size;
-                 const average = count > 0 ? (totalRating / count).toFixed(1) : 0;
-                 return { ...simService, rating: parseFloat(average), ratingCount: count };
-               })
-             );
-             const sortedServices = servicesWithRatings.sort(
-               (a, b) => historyToFetch.indexOf(a.id) - historyToFetch.indexOf(b.id)
-             );
-             setSimilarServices(sortedServices);
+          if (Array.isArray(similarSnap) === false && similarSnap.docs) {
+            const similarServicesData = similarSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+            const servicesWithRatings = await Promise.all(
+              similarServicesData.map(async (simService) => {
+                const serviceRatingsRef = collection(db, "ratings");
+                const q = query(serviceRatingsRef, where("serviceId", "==", simService.id));
+                const ratingsSnapshot = await getDocs(q);
+                let totalRating = 0;
+                ratingsSnapshot.forEach((doc) => {
+                  totalRating += doc.data().rating;
+                });
+                const count = ratingsSnapshot.size;
+                const average = count > 0 ? (totalRating / count).toFixed(1) : 0;
+                return { ...simService, rating: parseFloat(average), ratingCount: count };
+              })
+            );
+
+            const sortedServices = servicesWithRatings.sort(
+              (a, b) => historyToFetch.indexOf(a.id) - historyToFetch.indexOf(b.id)
+            );
+            setSimilarServices(sortedServices);
           }
 
         } else {
@@ -243,67 +207,64 @@ function ServiceDetailPage() {
     };
 
     fetchAllData();
-
     const unsubscribeRating = subscribeToAverageRating(id, (data) => {
       setAverageRating(data);
     });
     return () => {
       unsubscribeRating();
     };
-  }, [id, currentUser]); 
+  }, [id, currentUser]);
 
   const handlePostComment = async () => {
     if (!newCommentText.trim()) return;
-    
     setSubmittingComment(true);
     try {
-        const newRatingData = {
-            serviceId: id,
-            serviceName: service.name,
-            userId: currentUser.uid,
-            userName: userData?.name || currentUser.email.split('@')[0] || "عميل",
-           
-            rating: hasPurchased ? newRatingValue : 0, 
-            comment: newCommentText,
-            createdAt: serverTimestamp(),
-            providerReply: null 
-        };
+      const ratingToSend = (hasPurchased && !hasRatedBefore) ? newRatingValue : 0;
+      const newRatingData = {
+        serviceId: id,
+        serviceName: service.name,
+        userId: currentUser.uid,
+        userName: userData?.name || currentUser.email.split('@')[0] || "عميل",
+        rating: ratingToSend,
+        comment: newCommentText,
+        createdAt: serverTimestamp(),
+        providerReply: null
+      };
 
-        const docRef = await addDoc(collection(db, "ratings"), newRatingData);
-        
-        setIndividualRatings(prev => [{ id: docRef.id, ...newRatingData, createdAt: { toDate: () => new Date() } }, ...prev]);
-        setNewCommentText("");
-        setNewRatingValue(0);
+      const docRef = await addDoc(collection(db, "ratings"), newRatingData);
+      setIndividualRatings(prev => [{ id: docRef.id, ...newRatingData, createdAt: { toDate: () => new Date() } }, ...prev]);
 
+      if (ratingToSend > 0) setHasRatedBefore(true);
+
+      setNewCommentText("");
+      setNewRatingValue(0);
     } catch (error) {
-        console.error("Error adding comment:", error);
-        alert("حدث خطأ أثناء الإرسال.");
+      console.error("Error adding comment:", error);
+      alert("حدث خطأ أثناء الإرسال.");
     } finally {
-        setSubmittingComment(false);
+      setSubmittingComment(false);
     }
   };
 
   const handleSubmitReply = async (ratingId) => {
     if (!replyText.trim()) return;
     setSubmittingReply(true);
-
     try {
       const ratingRef = doc(db, "ratings", ratingId);
+      const replyName = userRole === 'admin' ? "Kashta" : (userData?.name || "مقدم خدمة");
       const replyData = {
         reply: replyText,
         repliedAt: new Date(),
-        providerName: "Kashta"
+        providerName: replyName
       };
 
       await updateDoc(ratingRef, { providerReply: replyData });
 
-      setIndividualRatings(prevRatings => 
+      setIndividualRatings(prevRatings =>
         prevRatings.map(r => r.id === ratingId ? { ...r, providerReply: replyData } : r)
       );
-
       setReplyText("");
       setActiveReplyId(null);
-
     } catch (error) {
       console.error("Error submitting reply:", error);
     } finally {
@@ -323,13 +284,15 @@ function ServiceDetailPage() {
       setBookingLoading(false);
       return;
     }
+
     const itemToAdd = {
       serviceId: service.id,
       serviceName: service.name,
       servicePrice: Number(service.price),
       imageUrl: service.imageUrl,
       quantity: 1,
-      type: isPackage ? 'package' : 'service'
+      type: isPackage ? 'package' : 'service',
+      providerId: service.providerId
     };
     addToCart(itemToAdd);
     setBookingLoading(false);
@@ -341,213 +304,301 @@ function ServiceDetailPage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen bg-main-bg"><Loader className="animate-spin text-second-text" size={48} /></div>;
-  if (error || !service) return <div className="min-h-screen bg-main-bg flex flex-col items-center justify-center text-second-text"><h2 className="text-3xl font-bold mb-4">{error || "لم يتم العثور على الخدمة"}</h2><button onClick={() => navigate("/services")} className="text-main-accent underline">العودة للخدمات</button></div>;
+  if (loading) return <div className="min-h-screen flex justify-center items-center bg-main-bg"><Loader className="animate-spin text-main-accent" size={40} /></div>;
+  if (error || !service) return <div className="min-h-screen flex flex-col justify-center items-center bg-main-bg text-main-text"><p className="text-xl font-bold mb-4">{error || "لم يتم العثور على الخدمة"}</p><button onClick={() => navigate("/services")} className="text-main-accent underline">العودة للخدمات</button></div>;
+
+  const canReply = userRole === "admin" || (userRole === "provider" && currentUser && service.providerId === currentUser.uid);
 
   return (
-    <div className="bg-main-bg min-h-screen py-10 px-4">
-      <div className="container mx-auto max-w-6xl">
-        
+    <div className="min-h-screen bg-main-bg pt-28 pb-20 px-4 md:px-8 relative">
+      <div className="max-w-7xl mx-auto">
         <button onClick={() => navigate(-1)} className="flex items-center text-second-text mb-8 hover:opacity-80 transition font-bold">
-          <ArrowRight className="ml-2" /> العودة للقائمة
+          <ArrowRight className="ml-2" size={20} />
+          العودة للقائمة
         </button>
 
-      
-        <div className="bg-second-bg rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row mb-12">
-          <div className="md:w-1/2 h-80 md:h-auto relative group">
-            <img src={service.imageUrl || "https://placehold.co/600x600"} alt={service.name} fetchPriority="high" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"/>
-            {isPackage && <div className="absolute top-4 right-4 bg-main-accent text-main-text px-4 py-1 rounded-full font-bold shadow-lg flex items-center gap-2 z-10"><Package size={18} /> بكج توفير</div>}
-          </div>
-          <div className="md:w-1/2 p-8 md:p-10 flex flex-col">
-            <div className="flex justify-between items-start mb-2">
-              <h1 className="text-3xl md:text-4xl font-extrabold text-main-text leading-tight">{service.name}</h1>
-              <div className="flex items-center gap-1 bg-main-text/10 px-2 py-1 rounded-lg shrink-0">
-                <Star className="text-main-accent" size={16} />
-                <span className="font-bold text-main-text">{averageRating.average}</span>
-                <span className="text-xs text-main-text/60">({averageRating.count})</span>
-              </div>
-            </div>
-            <p className="text-main-text/70 text-lg leading-relaxed mb-6 whitespace-pre-wrap">{service.description || "لا يوجد وصف متوفر حالياً."}</p>
-            {service.features && service.features.length > 0 && (
-              <div className="mb-8 bg-main-bg/5 p-4 rounded-2xl border border-main-text/5">
-                <h3 className="font-bold text-main-text mb-3 border-b border-main-text/10 pb-2 text-sm uppercase tracking-wide">يشمل هذا العرض:</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {service.features.map((feature, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-main-text/90">
-                      <CheckCircle size={16} className="text-green-600" />
-                      <span className="text-sm font-medium">{typeof feature === 'object' ? feature.itemName : feature}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="mt-auto pt-6 border-t border-main-text/10">
-              {bookingError && <p className="bg-red-100 text-red-700 p-2 rounded-lg mb-4 text-center text-sm font-bold">{bookingError}</p>}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-main-text/60 font-bold">السعر الإجمالي</p>
-                  <p className="text-3xl font-extrabold text-main-text">{service.price} <span className="text-lg font-medium text-main-text">ريال</span></p>
-                </div>
-                {isItemInCart ? (
-                  <div className="flex items-center gap-4 bg-main-text/10 p-2 rounded-2xl">
-                     <button onClick={() => handleUpdateQuantity(cartItem.quantity - 1)} className="bg-main-text text-second-text w-10 h-10 rounded-xl hover:bg-main-bg transition flex items-center justify-center"><Minus size={20} /></button>
-                     <span className="text-2xl font-bold text-main-text w-8 text-center">{cartItem.quantity}</span>
-                     <button onClick={() => handleUpdateQuantity(cartItem.quantity + 1)} className="bg-main-text text-second-text w-10 h-10 rounded-xl hover:bg-main-bg transition flex items-center justify-center"><Plus size={20} /></button>
-                  </div>
-                ) : (
-                  <button onClick={handleInitialAddToCart} disabled={bookingLoading} className="bg-main-text text-second-text px-8 py-3 rounded-xl font-bold text-lg shadow-xl hover:bg-main-bg hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-70">
-                    <ShoppingCart size={20} /> {bookingLoading ? "جاري الإضافة..." : "أضف للسلة"}
-                  </button>
+        <section className="flex justify-center w-full">
+          <div className="w-full max-w-6xl bg-second-bg rounded-3xl shadow-xl overflow-hidden border border-main-text/5">
+
+
+            <div className="relative h-[400px] md:h-[500px] w-full group">
+              <img
+                src={service.imageUrl || "https://placehold.co/800x600"}
+                alt={service.name}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+
+              <div className="absolute bottom-6 right-6 md:bottom-10 md:right-10 text-white z-10">
+                {isPackage && (
+                  <span className="inline-flex items-center gap-1.5 bg-main-accent text-main-text text-xs md:text-sm px-4 py-1.5 rounded-full font-black mb-3 shadow-lg">
+                    <Package size={14} /> بكج توفير
+                  </span>
                 )}
+                <h1 className="text-3xl md:text-5xl font-black mb-2 drop-shadow-md">{service.name}</h1>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-3 py-1 rounded-lg">
+                    <Star className="text-main-accent fill-main-accent" size={16} />
+                    <span className="font-bold text-lg pt-0.5">{averageRating.average}</span>
+                    <span className="text-white/70 text-sm">({averageRating.count} تقييم)</span>
+                  </div>
+                </div>
               </div>
-              {isItemInCart && <div className="text-center mt-3"><Link to="/cart" className="text-sm font-bold text-main-text underline hover:text-main-accent">الذهاب لإتمام الطلب</Link></div>}
             </div>
-          </div>
-        </div>
 
-  
-        {similarServices.length > 0 && (
-          <section className="mb-12">
-            <h3 className="text-2xl font-extrabold text-second-text mb-6 border-r-4 border-second-text pr-4">خدمات شاهدتها مؤخراً</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-              {similarServices.map((simService) => (
-                <ServiceCard key={simService.id} service={simService} userRole={userRole} />
-              ))}
-            </div>
-          </section>
-        )}
+            <div className="p-6 md:p-12">
 
-      
-        <section className="mt-12">
-           
-           <div className="bg-second-bg rounded-3xl p-6 md:p-10 shadow-xl border border-main-text/5">
-             
-             <div className="flex items-center justify-between mb-8 border-b border-main-text/10 pb-4">
-               <h3 className="text-2xl font-extrabold text-main-text">
-                 التعليقات والاستفسارات <span className="text-main-text/50 text-lg font-medium">({individualRatings.length})</span>
-               </h3>
-             </div>
 
-          
-{currentUser ? (
-                <div className="bg-main-bg/5 rounded-2xl p-6 mb-10 border border-main-text/5 transition-all focus-within:border-main-text/20 focus-within:bg-main-bg/10">
-                   
-                   
-                   {hasPurchased && (
-                      <div className="flex flex-col items-center justify-center mb-6 border-b border-main-text/10 pb-6">
-                         <p className="text-main-text font-bold mb-3 text-lg">كيف كانت تجربتك؟</p>
-                         <StarRatingInput rating={newRatingValue} setRating={setNewRatingValue} size={35} />
+              <div className="mb-12">
+                <div className="prose prose-lg prose-invert max-w-none">
+                  <h3 className="text-main-text font-bold text-xl mb-3 flex items-center gap-2">
+                    <Sparkles size={20} className="text-main-accent" />
+                    الوصف
+                  </h3>
+                  <p className="text-main-text/80 leading-loose text-base md:text-lg">
+                    {service.description || "لا يوجد وصف متوفر حالياً."}
+                  </p>
+                </div>
+
+                {service.features?.length > 0 && (
+                  <div className="mt-8 bg-main-bg/5 rounded-2xl p-6 border border-main-text/5">
+                    <p className="text-main-text font-bold mb-4 text-lg">مميزات العرض:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {service.features.map((feature, idx) => (
+                        <div key={idx} className="flex items-center gap-3 text-main-text/90 bg-second-bg/50 p-3 rounded-xl border border-main-text/5">
+                          <CheckCircle size={18} className="text-main-accent shrink-0" />
+                          <span className="font-medium text-sm md:text-base">{typeof feature === "object" ? feature.itemName : feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+
+                <div className="mt-10 p-1 rounded-2xl bg-gradient-to-br from-main-text/5 to-main-accent/10">
+                  <div className="bg-second-bg rounded-xl p-6 md:p-8 border border-main-text/5">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+
+                      <div className="text-center md:text-right">
+                        <p className="text-main-text/60 text-sm font-medium mb-1">السعر الإجمالي</p>
+                        <div className="flex items-center justify-center md:justify-start gap-1">
+                          <span className="text-main-text font-black text-4xl">{service.price}</span>
+                          <span className="text-main-accent font-bold text-lg mt-2">ريال</span>
+                        </div>
                       </div>
-                   )}
 
-                   <textarea 
-                     className="w-full bg-transparent text-main-text placeholder-main-text/40 border-none outline-none focus:ring-0 resize-none text-sm mb-2 font-medium"
-                     placeholder={hasPurchased ? "شاركنا تفاصيل تجربتك..." : "هل لديك سؤال أو استفسار؟ اكتب هنا..."}
-                     rows="3"
-                     value={newCommentText}
-                     onChange={(e) => setNewCommentText(e.target.value)}
-                   />
-                   <div className="flex justify-end items-center pt-2 border-t border-main-text/5">
-                      <button 
+                      <div className="w-full md:w-auto flex-1 max-w-md">
+                        {bookingError && (
+                          <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-xl text-center font-bold mb-4 animate-pulse">
+                            {bookingError}
+                          </div>
+                        )}
+
+                        {isItemInCart ? (
+                          <div className="flex items-center gap-3 bg-main-bg/10 p-2 rounded-2xl border border-main-text/10">
+                            <button onClick={() => handleUpdateQuantity(cartItem.quantity - 1)} className="bg-main-text text-second-text w-12 h-12 rounded-xl flex items-center justify-center hover:bg-main-text/90 transition shadow-md">
+                              <Minus size={20} />
+                            </button>
+                            <span className="font-black text-2xl flex-1 text-center text-main-text">{cartItem.quantity}</span>
+                            <button onClick={() => handleUpdateQuantity(cartItem.quantity + 1)} className="bg-main-text text-second-text w-12 h-12 rounded-xl flex items-center justify-center hover:bg-main-text/90 transition shadow-md">
+                              <Plus size={20} />
+                            </button>
+                            <Link to="/cart" className="bg-main-accent text-main-text px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:brightness-110 transition shadow-lg flex-1">
+                              إتمام الطلب <ArrowRight size={18} />
+                            </Link>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handleInitialAddToCart}
+                            disabled={bookingLoading}
+                            className="group relative w-full bg-main-text text-second-text py-4 px-6 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl hover:shadow-main-text/20 transition-all duration-300 transform hover:-translate-y-1 active:scale-95 overflow-hidden flex items-center justify-center gap-3"
+                          >
+                            <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
+                            {bookingLoading ? (
+                              <><Loader className="animate-spin" size={24} /> جاري الإضافة...</>
+                            ) : (
+                              <>
+                                <ShoppingCart size={24} className="group-hover:rotate-12 transition-transform duration-300" />
+                                <span>أضف للسلة</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                <div className="h-full">
+                  {service.providerId && <ProviderInfoCard providerId={service.providerId} />}
+                </div>
+
+                <div className="bg-main-accent/5 border border-main-accent/10 rounded-2xl p-6 flex flex-col justify-center h-full">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-main-accent text-main-text p-3 rounded-full shadow-md shrink-0">
+                      <ShieldCheck size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-main-text text-lg mb-2">ضمان كشتة الذهبي</h4>
+                      <p className="text-main-text/70 text-sm leading-relaxed">
+                        رحلتك مضمونة 100%. في حال اختلاف الخدمة عن الوصف، نضمن لك استعادة كامل المبلغ. دعم فني متواجد 24/7 لخدمتك.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+              {similarServices.length > 0 && (
+                <div className="mb-16 pt-10 border-t border-main-text/5">
+                  <h2 className="text-main-text font-extrabold text-2xl mb-6">
+                    خدمات قد تعجبك
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {similarServices.map((simService) => (
+                      <ServiceCard key={simService.id} service={simService} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+
+              <div className="pt-10 border-t border-main-text/10">
+                <h3 className="text-2xl font-bold text-main-text mb-8 flex items-center gap-2">
+                  <MessageCircle className="text-main-accent" />
+                  آراء العملاء ({individualRatings.length})
+                </h3>
+
+                {currentUser ? (
+                  <div className="bg-second-bg rounded-2xl p-6 mb-10 border border-main-text/10 shadow-sm">
+                    {hasPurchased && !hasRatedBefore && (
+                      <div className="mb-4 pb-4 border-b border-main-text/5">
+                        <label className="block text-main-text text-sm font-bold mb-3">قيّم تجربتك</label>
+                        <div className="flex gap-2" dir="rtl">
+                          {[...Array(5)].map((_, index) => (
+                            <FaStar
+                              key={index}
+                              size={28}
+                              className={`cursor-pointer transition-all hover:scale-110 ${index + 1 <= newRatingValue ? "text-yellow-400 drop-shadow-sm" : "text-gray-300"}`}
+                              onClick={() => setNewRatingValue(index + 1)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="relative">
+                      <textarea
+                        className="w-full bg-white text-main-text rounded-xl p-4 min-h-[120px] focus:ring-2 focus:ring-main-accent/50 outline-none resize-none border border-transparent transition placeholder:text-main-text/30"
+                        placeholder="اكتب تعليقك هنا..."
+                        value={newCommentText}
+                        onChange={(e) => setNewCommentText(e.target.value)}
+                      />
+                      <button
                         onClick={handlePostComment}
                         disabled={submittingComment}
-                        className="bg-main-text text-second-text px-8 py-2 rounded-xl font-bold text-sm hover:bg-main-accent hover:text-main-text transition disabled:opacity-50 flex items-center gap-2"
+                        className="absolute bottom-3 left-3 bg-main-text text-second-text px-4 py-2 rounded-lg font-bold text-xs hover:bg-main-accent hover:text-main-text transition disabled:opacity-50 flex items-center gap-2 shadow-md"
                       >
-                        {submittingComment ? <Loader size={18} className="animate-spin" /> : <Send size={18} />}
-                        إرسال
+                        {submittingComment ? <Loader size={14} className="animate-spin" /> : <Send size={14} />}
+                        نشر
                       </button>
-                   </div>
-                </div>
-             ) : (
-          
-                <div className="bg-main-bg/5 rounded-2xl p-6 text-center mb-10 border border-dashed border-main-text/20">
-                   <p className="text-main-text/70 text-sm mb-3 font-medium">يجب عليك تسجيل الدخول لتتمكن من المشاركة.</p>
-                   <Link to="/login" className="inline-flex items-center gap-2 bg-main-text text-second-text px-6 py-2 rounded-xl font-bold text-sm hover:bg-main-accent hover:text-main-text transition">
-                      <LogIn size={16} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-main-bg/5 rounded-2xl p-8 text-center mb-10 border border-dashed border-main-text/20">
+                    <p className="text-main-text/70 text-base mb-4 font-medium">سجل دخولك لتشاركنا رأيك في الخدمة</p>
+                    <Link to="/login" className="inline-flex items-center gap-2 bg-main-text text-second-text px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-main-accent hover:text-main-text transition shadow-md hover:-translate-y-0.5">
+                      <LogIn size={18} />
                       تسجيل الدخول
-                   </Link>
-                </div>
-             )}
+                    </Link>
+                  </div>
+                )}
 
-             <div className="space-y-8">
-               {individualRatings.length > 0 ? (
-                 individualRatings.map((rating) => (
-                   <div key={rating.id} className="border-b border-main-text/10 pb-8 last:border-0 last:pb-0">
-                     
-                     <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                           <div className="w-11 h-11 bg-main-text rounded-full flex items-center justify-center text-second-text font-bold text-lg shadow-sm">
+                <div className="space-y-6">
+                  {individualRatings.length > 0 ? (
+                    individualRatings.map((rating) => (
+                      <div key={rating.id} className="bg-main-bg/5 p-6 rounded-2xl border border-main-text/5 hover:border-main-text/10 transition">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-main-text to-gray-700 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
                               {rating.userName ? rating.userName.charAt(0).toUpperCase() : "U"}
-                           </div>
-                           <div>
+                            </div>
+                            <div>
                               <h4 className="text-main-text font-bold text-base">{rating.userName || "عميل"}</h4>
-                              <div className="flex items-center gap-2">
-                                 <span className="text-xs text-main-text/50 font-medium">{formatTimeAgo(rating.createdAt)}</span>
-                                 {rating.rating > 0 && <StarsReadOnly rating={rating.rating} size={12} />}
+                              <div className="flex items-center gap-3 mt-1">
+                                {rating.rating > 0 && <StarsReadOnly rating={rating.rating} size={14} />}
+                                <span className="text-xs text-main-text/40 font-medium">• {formatTimeAgo(rating.createdAt)}</span>
                               </div>
-                           </div>
+                            </div>
+                          </div>
                         </div>
-                     </div>
+                        <div className="mr-16">
+                          <p className="text-main-text/80 text-base leading-relaxed">{rating.comment}</p>
+                        </div>
 
-                     <div className="pr-14">
-                        <p className="text-main-text/90 text-base leading-relaxed">
-                          {rating.comment}
-                        </p>
-                     </div>
-
-                     {rating.providerReply && (
-                       <div className="mt-4 mr-12 flex items-start gap-3 animate-fade-in">
-                          <div className="w-1 border-r-2 border-main-accent/40 rounded-full h-auto"></div>
-                          <div className="bg-main-bg/5 p-4 rounded-xl w-full">
-                             <div className="flex justify-between items-center mb-2">
+                        {/* رد المزود */}
+                        {rating.providerReply && (
+                          <div className="mt-4 mr-12 md:mr-16 flex items-start gap-3 animate-fade-in">
+                            <div className="w-0.5 bg-main-accent/30 rounded-full self-stretch my-1"></div>
+                            <div className="bg-second-bg p-4 rounded-xl w-full border border-main-text/5 shadow-sm">
+                              <div className="flex justify-between items-center mb-2">
                                 <span className="text-main-accent font-extrabold text-sm flex items-center gap-1.5">
-                                   <CheckCircle size={14} className="fill-main-accent text-second-bg" />
-                                   {rating.providerReply.providerName || "Kashta"}
+                                  {rating.providerReply.providerName === "Kashta" ? (
+                                    <CheckCircle size={14} className="fill-main-accent text-second-bg" />
+                                  ) : (
+                                    <Briefcase size={14} className="text-main-accent" />
+                                  )}
+                                  {rating.providerReply.providerName}
                                 </span>
-                                <span className="text-xs text-main-text/40">
+                                <span className="text-xs text-main-text/30">
                                   {rating.providerReply.repliedAt ? formatTimeAgo(rating.providerReply.repliedAt) : ""}
                                 </span>
-                             </div>
-                             <p className="text-main-text/80 text-sm leading-relaxed">
-                               {rating.providerReply.reply}
-                             </p>
-                          </div>
-                       </div>
-                     )}
-
-                     {!rating.providerReply && userRole === "provider" && (
-                       <div className="mt-3 mr-14">
-                          {activeReplyId === rating.id ? (
-                            <div className="flex gap-2 mt-2 items-center animate-fade-in">
-                               <input 
-                                 type="text" 
-                                 value={replyText}
-                                 onChange={(e) => setReplyText(e.target.value)}
-                                 className="bg-white text-main-text text-sm p-2.5 rounded-lg flex-1 border border-main-text/20 focus:border-main-accent outline-none shadow-inner"
-                                 placeholder="اكتب الرد بصفتك Kashta..."
-                               />
-                               <button onClick={() => handleSubmitReply(rating.id)} className="bg-main-text text-second-text px-4 py-2 rounded-lg text-xs font-bold hover:bg-main-accent hover:text-main-text transition">إرسال</button>
-                               <button onClick={() => setActiveReplyId(null)} className="text-main-text/50 text-xs hover:text-red-500 font-bold px-2">إلغاء</button>
+                              </div>
+                              <p className="text-main-text/70 text-sm leading-relaxed">{rating.providerReply.reply}</p>
                             </div>
-                          ) : (
-                            <button onClick={() => setActiveReplyId(rating.id)} className="text-xs text-main-text/40 hover:text-main-accent flex items-center gap-1 transition font-bold mt-2">
-                               <Reply size={12} /> رد على العميل
-                            </button>
-                          )}
-                       </div>
-                     )}
-                   </div>
-                 ))
-               ) : (
-                 <div className="text-center py-12">
-                    <MessageCircle size={48} className="text-main-text/10 mx-auto mb-3" />
-                    <p className="text-main-text/60 font-medium text-lg">لا توجد تعليقات حتى الآن</p>
-                    <p className="text-main-text/40 text-sm">كن أول من يشارك تجربته أو سؤاله!</p>
-                 </div>
-               )}
-             </div>
-           </div>
+                          </div>
+                        )}
 
+
+                        {!rating.providerReply && canReply && (
+                          <div className="mt-4 mr-16">
+                            {activeReplyId === rating.id ? (
+                              <div className="flex gap-2 items-center bg-white p-2 rounded-xl shadow-sm ring-1 ring-main-text/5">
+                                <input
+                                  type="text"
+                                  value={replyText}
+                                  onChange={(e) => setReplyText(e.target.value)}
+                                  className="bg-transparent text-main-text text-sm p-2 flex-1 outline-none"
+                                  placeholder="اكتب ردك..."
+                                  autoFocus
+                                />
+                                <button onClick={() => handleSubmitReply(rating.id)} className="bg-main-text text-second-text px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-main-accent hover:text-main-text transition">إرسال</button>
+                                <button onClick={() => setActiveReplyId(null)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition"><Minus size={14} /></button>
+                              </div>
+                            ) : (
+                              <button onClick={() => setActiveReplyId(rating.id)} className="text-xs text-main-text/40 hover:text-main-accent flex items-center gap-1 transition font-bold">
+                                <Reply size={12} />
+                                رد على العميل
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12 bg-main-bg/5 rounded-3xl border border-dashed border-main-text/10">
+                      <MessageCircle size={48} className="text-main-text/10 mx-auto mb-4" />
+                      <p className="text-main-text/60 font-bold text-lg">لا توجد تعليقات حتى الآن</p>
+                      <p className="text-main-text/40 text-sm mt-1">كن أول من يشارك تجربته مع هذه الخدمة!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
         </section>
 
       </div>

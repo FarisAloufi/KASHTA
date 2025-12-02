@@ -11,6 +11,7 @@ import {
   FaTh,
   FaCalendarAlt,
   FaShoppingCart,
+  FaListAlt,
 } from "react-icons/fa";
 import KashtaLogo from "../../assets/Kashtalogo.png";
 
@@ -49,10 +50,26 @@ function Navbar() {
             من نحن
           </Link>
 
+
+          {currentUser && userRole === "admin" && (
+            <>
+              <Link to="/admin" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1">
+                الداشبورد
+              </Link>
+              <Link to="/manage-bookings" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1">
+                إدارة الحجوزات <FaTh size={18} />
+              </Link>
+              <Link to="/add-service" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1">
+                إضافة خدمة <FaPlusCircle size={18} />
+              </Link>
+            </>
+          )}
+
+
           {currentUser && userRole === "provider" && (
             <>
               <Link to="/manage-bookings" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1">
-                إدارة الحجوزات <FaTh size={18} />
+                إدارة خدماتي <FaListAlt size={18} />
               </Link>
               <Link to="/add-service" className="text-main-text hover:text-main-accent font-bold text-base transition-colors duration-200 flex items-center gap-1">
                 إضافة خدمة <FaPlusCircle size={18} />
@@ -68,7 +85,6 @@ function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
-
           {currentUser && (
             <Link to="/cart" className="relative text-main-text hover:text-main-accent transition-colors duration-200">
               <FaShoppingCart size={24} />
@@ -79,6 +95,7 @@ function Navbar() {
               )}
             </Link>
           )}
+
 
           {currentUser && (
             <Link
@@ -92,7 +109,6 @@ function Navbar() {
             </Link>
           )}
 
-
           {currentUser ? (
             <button
               onClick={handleLogout}
@@ -105,7 +121,7 @@ function Navbar() {
               to="/login"
               className="bg-main-bg text-white px-4 py-2 rounded-full hover:text-main-accent transition-colors duration-200 text-base font-bold shadow-md"
             >
-              تسجيل / تسجيل الدخول
+              تسجيل / دخول
             </Link>
           )}
         </div>

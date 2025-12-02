@@ -61,24 +61,24 @@ function RatingForm({ booking }) {
     setLoading(true);
 
     try {
-      // --- التعديل هنا: حفظ التقييم كتقييم عام للموقع مرة واحدة فقط ---
-      
+
+
       await addDoc(collection(db, "ratings"), {
         userId: userData.uid,
         userName: userData.name || "عميل",
-        
-        // نضع ID ثابت أو مميز ليدل على أنه تقييم للموقع وليس لخدمة محددة
-        serviceId: "GENERAL_SITE_RATING", 
+
+
+        serviceId: "GENERAL_SITE_RATING",
         serviceName: "تقييم عام للموقع",
-        
-        bookingId: booking.id, // ربط التقييم برقم الحجز كمرجع
+
+        bookingId: booking.id,
         rating: rating,
         comment: comment,
         createdAt: serverTimestamp(),
         providerReply: null
       });
 
-      // تحديث حالة الطلب إلى "تم التقييم"
+
       const bookingDocRef = doc(db, "bookings", booking.id);
       await updateDoc(bookingDocRef, {
         rated: true,

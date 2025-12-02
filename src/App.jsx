@@ -16,7 +16,8 @@ import ServicesPage from "./pages/ServicesPage";
 import AboutUsPage from "./pages/AboutUsPage";
 import CartPage from "./pages/CartPage";
 import ProfilePage from "./pages/ProfilePage";
-import ProviderRegisterPage from "./pages/ProviderRegisterPage";
+import ProviderRegisterPage from "./pages/provider/ProviderRegisterPage";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 // Routes
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -48,7 +49,10 @@ function App() {
           <Route element={<ProviderRoute />}>
             <Route path="/add-service" element={<AddServicePage />} />
             <Route path="/manage-bookings" element={<ManageBookingsPage />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+
           </Route>
+
         </Routes>
       </main>
 
