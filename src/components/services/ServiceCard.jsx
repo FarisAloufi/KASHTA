@@ -1,9 +1,8 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // 1. استيراد useNavigate
 import { Star, Award, Trash2, ShoppingCart, Plus, Minus } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
-import ProviderBadge from "./ProviderInfoCard";
 
 export const StarsReadOnly = ({ rating, size = 14 }) => {
   return (
@@ -25,14 +24,15 @@ export const StarsReadOnly = ({ rating, size = 14 }) => {
 };
 
 function ServiceCard({ service, userRole, onDelete }) {
+  const navigate = useNavigate(); // 2. تعريف التنقل
   const { cartItems, addToCart, updateCartItemQuantity, removeFromCart } = useCart();
-  const { currentUser } = useAuth();
+  const { currentUser } = useAuth(); // جلب المستخدم الحالي
 
   const cartItem = cartItems.find((item) => item.serviceId === service.id);
   const quantity = cartItem ? cartItem.quantity : 0;
 
   const showDeleteButton = onDelete && (
-    userRole === "admin" ||
+    userRole === "admin" || 
     (userRole === "provider" && currentUser && service.providerId === currentUser.uid)
   );
 
@@ -45,8 +45,16 @@ function ServiceCard({ service, userRole, onDelete }) {
   };
 
   const handleAddToCart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); 
+    e.stopPropagation(); 
+
+
+    if (!currentUser) {
+        navigate("/login");
+        return; 
+    }
+
+
     const itemToAdd = {
       serviceId: service.id,
       serviceName: service.name,
@@ -54,7 +62,7 @@ function ServiceCard({ service, userRole, onDelete }) {
       imageUrl: service.imageUrl,
       quantity: 1,
       type: service.isPackage ? 'package' : 'service',
-      providerId: service.providerId
+      providerId: service.providerId 
     };
     addToCart(itemToAdd);
   };
@@ -62,7 +70,7 @@ function ServiceCard({ service, userRole, onDelete }) {
   const handleIncrement = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const idToUpdate = cartItem?.cartId || service.id;
+    const idToUpdate = cartItem?.cartId || service.id; 
     updateCartItemQuantity(idToUpdate, quantity + 1);
   };
 
@@ -79,13 +87,12 @@ function ServiceCard({ service, userRole, onDelete }) {
 
   return (
     <div className="group relative bg-second-bg text-main-text rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-main-text/10 max-w-sm mx-auto w-full flex flex-col">
-
-
+      
       {showDeleteButton && (
         <button
           onClick={handleDeleteClick}
           className="absolute top-2 left-2 z-10 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition shadow-md"
-          aria-label="Delete service"
+          title="حذف الخدمة"
         >
           <Trash2 size={16} />
         </button>
@@ -94,7 +101,10 @@ function ServiceCard({ service, userRole, onDelete }) {
       <Link to={`/service/${service.id}`} className="block">
         <div className="relative h-48 overflow-hidden">
           <img
-            src={service.imageUrl || "https://placehold.co/600x400"}
+            src={
+              service.imageUrl ||
+              "https://placehold.co/600x400"
+            }
             alt={service.name}
             loading="lazy"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -109,14 +119,12 @@ function ServiceCard({ service, userRole, onDelete }) {
           )}
         </div>
       </Link>
-
-
-
+      
       <div className="p-4 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-1">
-          <h3 className="text-lg font-bold text-main-text line-clamp-1 group-hover:text-main-accent transition-colors">
-            {service.name}
-          </h3>
+            <h3 className="text-lg font-bold text-main-text line-clamp-1 group-hover:text-main-accent transition-colors">
+              {service.name}
+            </h3>
         </div>
 
         <div className="flex items-center gap-2 mb-2" dir="rtl">
@@ -143,23 +151,23 @@ function ServiceCard({ service, userRole, onDelete }) {
 
           {userRole !== 'admin' && (
             quantity > 0 ? (
-              <div className="flex items-center bg-main-text/10 rounded-xl p-1 shadow-inner">
-                <button onClick={handleIncrement} className="w-8 h-8 flex items-center justify-center bg-main-text text-second-bg rounded-lg hover:bg-main-accent transition shadow-sm">
-                  <Plus size={16} strokeWidth={3} />
-                </button>
-                <span className="font-black text-main-text w-8 text-center text-lg">{quantity}</span>
-                <button onClick={handleDecrement} className="w-8 h-8 flex items-center justify-center bg-main-text text-second-bg rounded-lg hover:bg-red-600 transition shadow-sm">
-                  {quantity === 1 ? <Trash2 size={16} /> : <Minus size={16} strokeWidth={3} />}
-                </button>
-              </div>
+                <div className="flex items-center bg-main-text/10 rounded-xl p-1 shadow-inner">
+                    <button onClick={handleIncrement} className="w-8 h-8 flex items-center justify-center bg-main-text text-second-bg rounded-lg hover:bg-main-accent transition shadow-sm">
+                        <Plus size={16} strokeWidth={3} />
+                    </button>
+                    <span className="font-black text-main-text w-8 text-center text-lg">{quantity}</span>
+                    <button onClick={handleDecrement} className="w-8 h-8 flex items-center justify-center bg-main-text text-second-bg rounded-lg hover:bg-red-600 transition shadow-sm">
+                        {quantity === 1 ? <Trash2 size={16} /> : <Minus size={16} strokeWidth={3} />}
+                    </button>
+                </div>
             ) : (
-              <button
+                <button
                 onClick={handleAddToCart}
                 className="bg-main-text text-second-text px-4 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-main-accent hover:text-main-text transition-all active:scale-95 flex items-center gap-2"
-              >
+                >
                 <ShoppingCart size={16} />
                 أضف للسلة
-              </button>
+                </button>
             )
           )}
 
