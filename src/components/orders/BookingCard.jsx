@@ -2,42 +2,64 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { User, Calendar, Hash } from "lucide-react";
 
-const getStatusColor = (status) => {
-  switch (status) {
-    case "pending": return "bg-amber-100 text-amber-800 border border-amber-200";
-    case "confirmed": return "bg-blue-100 text-blue-800 border border-blue-200";
-    case "ready": return "bg-emerald-100 text-emerald-800 border border-emerald-200";
-    case "completed": return "bg-gray-100 text-gray-800 border border-gray-200";
-    case "cancelled": return "bg-red-100 text-red-800 border border-red-200";
-    default: return "bg-gray-100 text-gray-800 border border-gray-200";
-  }
+// --- Configuration & Constants ---
+
+// Configuration object for booking statuses.
+// Maps each status key to its display text and Tailwind CSS classes.
+// This replaces the multiple switch statements (cleaner & easier to maintain).
+const STATUS_CONFIG = {
+  pending: {
+    label: "قيد الانتظار",
+    className: "bg-amber-100 text-amber-800 border border-amber-200",
+  },
+  confirmed: {
+    label: "قيد التجهيز",
+    className: "bg-blue-100 text-blue-800 border border-blue-200",
+  },
+  ready: {
+    label: "في الطريق",
+    className: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+  },
+  completed: {
+    label: "مكتمل",
+    className: "bg-gray-100 text-gray-800 border border-gray-200",
+  },
+  cancelled: {
+    label: "ملغي",
+    className: "bg-red-100 text-red-800 border border-red-200",
+  },
+  // Default fallback for unknown statuses
+  default: {
+    label: "غير معروف",
+    className: "bg-gray-100 text-gray-800 border border-gray-200",
+  },
 };
 
-const getStatusText = (status) => {
-  switch (status) {
-    case "pending": return "قيد الانتظار";
-    case "confirmed": return "قيد التجهيز";
-    case "ready": return "في الطريق";
-    case "completed": return "مكتمل";
-    case "cancelled": return "ملغي";
-    default: return "غير معروف";
-  }
+// --- Helper Functions ---
+
+/**
+ * Formats the booking date timestamp into a readable locale string.
+ */
+const formatBookingDate = (dateString) => {
+  const date = new Date(dateString);
+  return !isNaN(date)
+    ? date.toLocaleString("ar-SA", { dateStyle: "full", timeStyle: "short" })
+    : "تاريخ غير محدد";
 };
+
+// --- Main Component ---
 
 function BookingCard({ booking, children }) {
-  const dateObject = new Date(booking.bookingDate);
-  const bookingDateFormatted = !isNaN(dateObject)
-    ? dateObject.toLocaleString("ar-SA", {
-      dateStyle: "full",
-      timeStyle: "short",
-    })
-    : "تاريخ غير محدد";
+  // Destructure booking properties for cleaner access within JSX
+  const { status, orderGroupId, id, bookingDate, totalPrice, userName } = booking;
 
+  // Resolve status styling and label safely
+  const statusInfo = STATUS_CONFIG[status] || STATUS_CONFIG.default;
+  
+  // Prefer orderGroupId for display, fallback to document ID
+  const displayId = orderGroupId || id;
 
-  const displayId = booking.orderGroupId || booking.id;
-
-  const totalPrice = booking.totalPrice || 0;
-
+  // Prevents navigation when clicking interactive elements inside the card (like action buttons)
   const handleChildClick = (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -49,18 +71,22 @@ function BookingCard({ booking, children }) {
       className="block bg-second-bg text-main-text rounded-3xl shadow-lg overflow-hidden border border-main-bg/10 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 group relative"
     >
       <div className="p-6">
-
-
+        
+        {/* Header: Status Badge & Order ID */}
         <div className="flex justify-between items-start mb-4">
-          <span className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-sm ${getStatusColor(booking.status)}`}>
-            {getStatusText(booking.status)}
+          <span
+            className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-sm ${statusInfo.className}`}
+          >
+            {statusInfo.label}
           </span>
+          
           <div className="flex items-center gap-1 text-main-text/40">
             <Hash size={16} />
             <span className="font-mono text-lg font-bold">{displayId}</span>
           </div>
         </div>
 
+        {/* Customer Info Section */}
         <div className="mb-6">
           <h3 className="text-sm font-bold text-main-text/60 mb-1">
             صاحب الطلب:
@@ -70,33 +96,39 @@ function BookingCard({ booking, children }) {
               <User size={20} />
             </div>
             <span className="font-extrabold text-main-text text-xl">
-              {booking.userName || "عميل"}
+              {userName || "عميل"}
             </span>
           </div>
         </div>
 
         <hr className="border-main-bg/10 my-4" />
 
-
+        {/* Footer: Date & Price */}
         <div className="flex justify-between items-end">
           <div className="flex items-center gap-2 text-main-text/70 text-sm">
             <Calendar size={16} />
-            <span>{bookingDateFormatted}</span>
+            <span>{formatBookingDate(bookingDate)}</span>
           </div>
+          
           <div className="text-left">
             <p className="text-xs text-main-text/60 mb-1 font-bold">الإجمالي</p>
             <p className="text-2xl font-black text-green-700">
-              {Number(totalPrice).toLocaleString("ar-SA")} <span className="text-sm text-main-text font-medium">ريال</span>
+              {Number(totalPrice || 0).toLocaleString("ar-SA")} 
+              <span className="text-sm text-main-text font-medium mr-1">ريال</span>
             </p>
           </div>
         </div>
 
-
+        {/* Action Buttons Area (if any children are passed) */}
         {children && (
-          <div className="border-t border-main-bg/20 pt-4 mt-4" onClick={handleChildClick}>
+          <div 
+            className="border-t border-main-bg/20 pt-4 mt-4" 
+            onClick={handleChildClick}
+          >
             {children}
           </div>
         )}
+
       </div>
     </Link>
   );

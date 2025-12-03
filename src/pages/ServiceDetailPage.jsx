@@ -1,245 +1,210 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import {
+  doc, getDoc, collection, query, where, getDocs, orderBy, addDoc, updateDoc, serverTimestamp, documentId
+} from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
-import { doc, getDoc, collection, query, where, getDocs, orderBy, addDoc, updateDoc, serverTimestamp, documentId } from "firebase/firestore";
 import { FaStar } from "react-icons/fa";
-import { Plus, Minus, ShoppingCart, ArrowRight, Star, CheckCircle, Loader, Package, MessageCircle, Send, Reply, LogIn, Briefcase, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  Plus, Minus, ShoppingCart, ArrowRight, Star, CheckCircle, Loader,
+  Package, MessageCircle, Send, Reply, LogIn, Briefcase, ShieldCheck, Sparkles
+} from "lucide-react";
 import { subscribeToAverageRating } from "../services/ratingService";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import ServiceCard from "../components/services/ServiceCard";
 import ProviderInfoCard from "../components/services/ProviderInfoCard";
 
-// === Helper Functions ===
+// --- Helpers & Constants ---
+
+const TIME_INTERVALS = [
+  { label: "سنة", seconds: 31536000 },
+  { label: "شهر", seconds: 2592000 },
+  { label: "أسبوع", seconds: 604800 },
+  { label: "يوم", seconds: 86400 },
+  { label: "ساعة", seconds: 3600 },
+  { label: "دقيقة", seconds: 60 }
+];
+
 const formatTimeAgo = (timestamp) => {
   if (!timestamp) return "";
-  let date;
-  if (timestamp?.toDate) date = timestamp.toDate();
-  else if (timestamp instanceof Date) date = timestamp;
-  else if (timestamp.seconds) date = new Date(timestamp.seconds * 1000);
-  else return "";
-  const now = new Date();
-  const seconds = Math.floor((now - date) / 1000);
-  let interval = seconds / 31536000;
-  if (interval >= 1) return "منذ " + Math.floor(interval) + " سنة";
-  interval = seconds / 2592000;
-  if (interval >= 1) return "منذ " + Math.floor(interval) + " شهر";
-  interval = seconds / 604800;
-  if (interval >= 1) return "منذ " + Math.floor(interval) + " أسبوع";
-  interval = seconds / 86400;
-  if (interval >= 1) return "منذ " + Math.floor(interval) + " يوم";
-  interval = seconds / 3600;
-  if (interval >= 1) return "منذ " + Math.floor(interval) + " ساعة";
-  interval = seconds / 60;
-  if (interval >= 1) return "منذ " + Math.floor(interval) + " دقيقة";
+  let date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+  if (!date || isNaN(date)) return "";
+
+  const seconds = Math.floor((new Date() - date) / 1000);
+  for (const interval of TIME_INTERVALS) {
+    const count = Math.floor(seconds / interval.seconds);
+    if (count >= 1) return `منذ ${count} ${interval.label}`;
+  }
   return "الآن";
 };
 
-const StarsReadOnly = ({ rating, size = 16 }) => {
-  return (
-    <div className="flex gap-0.5" dir="rtl">
-      {[...Array(5)].map((_, index) => {
-        const ratingValue = index + 1;
-        return (
-          <Star
-            key={ratingValue}
-            fill={ratingValue <= rating ? "#ffc107" : "none"}
-            stroke={ratingValue <= rating ? "#ffc107" : "#d1d5db"}
-            size={size}
-          />
-        );
-      })}
-    </div>
-  );
-};
+const StarsReadOnly = ({ rating, size = 16 }) => (
+  <div className="flex gap-0.5" dir="rtl">
+    {[...Array(5)].map((_, index) => (
+      <Star
+        key={index}
+        fill={index + 1 <= rating ? "#ffc107" : "none"}
+        stroke={index + 1 <= rating ? "#ffc107" : "#d1d5db"}
+        size={size}
+      />
+    ))}
+  </div>
+);
+
+// --- Main Component ---
 
 function ServiceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const { currentUser, userRole, userData } = useAuth();
   const { addToCart, cartItems, updateCartItemQuantity } = useCart();
 
+  // State Management
   const [service, setService] = useState(null);
+  const [isPackage, setIsPackage] = useState(false);
+  const [similarServices, setSimilarServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isPackage, setIsPackage] = useState(false);
-  const [bookingError, setBookingError] = useState("");
-  const [bookingLoading, setBookingLoading] = useState(false);
 
+  // Ratings
   const [averageRating, setAverageRating] = useState({ average: 0, count: 0 });
   const [individualRatings, setIndividualRatings] = useState([]);
-  const [similarServices, setSimilarServices] = useState([]);
 
-  // Comment & Reply states
-  const [replyText, setReplyText] = useState("");
-  const [activeReplyId, setActiveReplyId] = useState(null);
-  const [submittingReply, setSubmittingReply] = useState(false);
-  const [newCommentText, setNewCommentText] = useState("");
-  const [newRatingValue, setNewRatingValue] = useState(0);
-  const [submittingComment, setSubmittingComment] = useState(false);
+  // User Actions
   const [hasPurchased, setHasPurchased] = useState(false);
   const [hasRatedBefore, setHasRatedBefore] = useState(false);
 
+  // Forms
+  const [newCommentText, setNewCommentText] = useState("");
+  const [newRatingValue, setNewRatingValue] = useState(0);
+  const [replyText, setReplyText] = useState("");
+  const [activeReplyId, setActiveReplyId] = useState(null);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+
+  // --- Effects ---
+
   useEffect(() => {
-    setLoading(true);
     const fetchAllData = async () => {
+      setLoading(true);
       try {
-        const ratingsRef = collection(db, "ratings");
-        const ratingsQuery = query(
-          ratingsRef,
-          where("serviceId", "==", id),
-          orderBy("createdAt", "desc")
-        );
-        const ratingsPromise = getDocs(ratingsQuery);
-
+        // 1. Check User History
         if (currentUser) {
-          const bookingsRef = collection(db, "bookings");
-          const bookingsQuery = query(
-            bookingsRef,
-            where("userId", "==", currentUser.uid)
-          );
-          getDocs(bookingsQuery).then((snapshot) => {
-            let found = false;
-            snapshot.forEach(doc => {
-              const data = doc.data();
-              if (data.status === 'completed' && data.services?.some(item => item.serviceId === id)) {
-                found = true;
-              }
-            });
-            setHasPurchased(found);
-          });
-
-          const userRatingQuery = query(
+          const bookingsQuery = query(collection(db, "bookings"), where("userId", "==", currentUser.uid));
+          const ratingsQuery = query(
             collection(db, "ratings"),
             where("serviceId", "==", id),
             where("userId", "==", currentUser.uid),
             where("rating", ">", 0)
           );
-          getDocs(userRatingQuery).then((snapshot) => {
-            if (!snapshot.empty) {
-              setHasRatedBefore(true);
-            }
-          });
-        }
 
-        const history = JSON.parse(localStorage.getItem("recentlyViewed")) || [];
-        const filteredHistory = history.filter((itemId) => itemId !== id);
-        const newHistory = [id, ...filteredHistory];
-        localStorage.setItem("recentlyViewed", JSON.stringify(newHistory.slice(0, 5)));
+          const [bookingsSnap, userRatingSnap] = await Promise.all([
+            getDocs(bookingsQuery),
+            getDocs(ratingsQuery)
+          ]);
 
-        const historyToFetch = newHistory.filter((itemId) => itemId !== id).slice(0, 3);
-        let similarPromise = Promise.resolve([]);
-
-        if (historyToFetch.length > 0) {
-          const similarQuery = query(
-            collection(db, "services"),
-            where(documentId(), "in", historyToFetch)
+          const bought = bookingsSnap.docs.some(doc =>
+            doc.data().status === 'completed' && doc.data().services?.some(item => item.serviceId === id)
           );
-          similarPromise = getDocs(similarQuery);
+          setHasPurchased(bought);
+          setHasRatedBefore(!userRatingSnap.empty);
         }
 
-        let docRef = doc(db, "services", id);
-        let docSnap = await getDoc(docRef);
-        let foundIsPackage = false;
+        // 2. Manage History
+        const history = JSON.parse(localStorage.getItem("recentlyViewed")) || [];
+        const newHistory = [id, ...history.filter(itemId => itemId !== id)].slice(0, 5);
+        localStorage.setItem("recentlyViewed", JSON.stringify(newHistory));
+
+        // 3. Fetch Service/Package
+        let docSnap = await getDoc(doc(db, "services", id));
+        let isPkg = false;
 
         if (!docSnap.exists()) {
-          docRef = doc(db, "packages", id);
-          docSnap = await getDoc(docRef);
-          foundIsPackage = true;
+          docSnap = await getDoc(doc(db, "packages", id));
+          isPkg = true;
         }
 
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setIsPackage(foundIsPackage);
-          const normalizedData = {
+          setIsPackage(isPkg);
+
+          setService({
             id: docSnap.id,
             ...data,
-            name: data.name || data.title || data.packageName || data.serviceName,
+            name: data.name || data.packageName,
             price: data.price || data.totalBasePrice,
-            description: data.description,
             features: data.features || data.items || [],
-            imageUrl: data.imageUrl,
-            providerId: data.providerId
-          };
-          setService(normalizedData);
+          });
 
-          const [ratingsSnap, similarSnap] = await Promise.all([
-            ratingsPromise,
-            similarPromise
-          ]);
+          // 4. Fetch Reviews
+          const ratingsSnap = await getDocs(query(collection(db, "ratings"), where("serviceId", "==", id), orderBy("createdAt", "desc")));
+          setIndividualRatings(ratingsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-          setIndividualRatings(
-            ratingsSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
-          );
+          // 5. Fetch Similar Services
+          const historyToFetch = newHistory.filter(itemId => itemId !== id).slice(0, 3);
+          if (historyToFetch.length > 0) {
+            const similarSnap = await getDocs(query(collection(db, "services"), where(documentId(), "in", historyToFetch)));
 
-          if (Array.isArray(similarSnap) === false && similarSnap.docs) {
-            const similarServicesData = similarSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-            const servicesWithRatings = await Promise.all(
-              similarServicesData.map(async (simService) => {
-                const serviceRatingsRef = collection(db, "ratings");
-                const q = query(serviceRatingsRef, where("serviceId", "==", simService.id));
-                const ratingsSnapshot = await getDocs(q);
-                let totalRating = 0;
-                ratingsSnapshot.forEach((doc) => {
-                  totalRating += doc.data().rating;
-                });
-                const count = ratingsSnapshot.size;
-                const average = count > 0 ? (totalRating / count).toFixed(1) : 0;
-                return { ...simService, rating: parseFloat(average), ratingCount: count };
-              })
-            );
-
-            const sortedServices = servicesWithRatings.sort(
-              (a, b) => historyToFetch.indexOf(a.id) - historyToFetch.indexOf(b.id)
-            );
-            setSimilarServices(sortedServices);
+            const similarData = await Promise.all(similarSnap.docs.map(async (doc) => {
+              const rSnap = await getDocs(query(collection(db, "ratings"), where("serviceId", "==", doc.id)));
+              let total = 0; rSnap.forEach(r => total += r.data().rating);
+              return {
+                id: doc.id, ...doc.data(),
+                rating: rSnap.size > 0 ? (total / rSnap.size).toFixed(1) : 0,
+                ratingCount: rSnap.size
+              };
+            }));
+            setSimilarServices(similarData);
           }
 
         } else {
           setError("لم يتم العثور على هذه الخدمة.");
         }
       } catch (err) {
-        console.error("خطأ:", err);
+        console.error("Fetch Error:", err);
         setError("حدث خطأ في جلب البيانات.");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchAllData();
-    const unsubscribeRating = subscribeToAverageRating(id, (data) => {
-      setAverageRating(data);
-    });
-    return () => {
-      unsubscribeRating();
-    };
+
+    // 6. Real-time Rating Subscription
+    const unsubscribeRating = subscribeToAverageRating(id, setAverageRating);
+    return () => unsubscribeRating();
   }, [id, currentUser]);
+
+  // --- Handlers ---
 
   const handlePostComment = async () => {
     if (!newCommentText.trim()) return;
     setSubmittingComment(true);
     try {
       const ratingToSend = (hasPurchased && !hasRatedBefore) ? newRatingValue : 0;
-      const newRatingData = {
+      const newReview = {
         serviceId: id,
         serviceName: service.name,
         userId: currentUser.uid,
-        userName: userData?.name || currentUser.email.split('@')[0] || "عميل",
+        userName: userData?.name || currentUser.email.split('@')[0],
         rating: ratingToSend,
         comment: newCommentText,
         createdAt: serverTimestamp(),
         providerReply: null
       };
 
-      const docRef = await addDoc(collection(db, "ratings"), newRatingData);
-      setIndividualRatings(prev => [{ id: docRef.id, ...newRatingData, createdAt: { toDate: () => new Date() } }, ...prev]);
+      const docRef = await addDoc(collection(db, "ratings"), newReview);
 
+      setIndividualRatings(prev => [{ id: docRef.id, ...newReview, createdAt: { toDate: () => new Date() } }, ...prev]);
       if (ratingToSend > 0) setHasRatedBefore(true);
 
       setNewCommentText("");
       setNewRatingValue(0);
-    } catch (error) {
-      console.error("Error adding comment:", error);
+    } catch (err) {
+      console.error("Comment Error:", err);
       alert("حدث خطأ أثناء الإرسال.");
     } finally {
       setSubmittingComment(false);
@@ -248,27 +213,20 @@ function ServiceDetailPage() {
 
   const handleSubmitReply = async (ratingId) => {
     if (!replyText.trim()) return;
-    setSubmittingReply(true);
     try {
-      const ratingRef = doc(db, "ratings", ratingId);
-      const replyName = userRole === 'admin' ? "Kashta" : (userData?.name || "مقدم خدمة");
       const replyData = {
         reply: replyText,
         repliedAt: new Date(),
-        providerName: replyName
+        providerName: userRole === 'admin' ? "Kashta" : (userData?.name || "مقدم خدمة")
       };
 
-      await updateDoc(ratingRef, { providerReply: replyData });
+      await updateDoc(doc(db, "ratings", ratingId), { providerReply: replyData });
 
-      setIndividualRatings(prevRatings =>
-        prevRatings.map(r => r.id === ratingId ? { ...r, providerReply: replyData } : r)
-      );
+      setIndividualRatings(prev => prev.map(r => r.id === ratingId ? { ...r, providerReply: replyData } : r));
       setReplyText("");
       setActiveReplyId(null);
-    } catch (error) {
-      console.error("Error submitting reply:", error);
-    } finally {
-      setSubmittingReply(false);
+    } catch (err) {
+      console.error("Reply Error:", err);
     }
   };
 
@@ -277,15 +235,14 @@ function ServiceDetailPage() {
 
   const handleInitialAddToCart = () => {
     setBookingError("");
-    setBookingLoading(true);
     if (!currentUser) {
       setBookingError("يجب عليك تسجيل الدخول أولاً.");
       setTimeout(() => navigate("/login"), 1500);
-      setBookingLoading(false);
       return;
     }
 
-    const itemToAdd = {
+    setBookingLoading(true);
+    addToCart({
       serviceId: service.id,
       serviceName: service.name,
       servicePrice: Number(service.price),
@@ -293,25 +250,25 @@ function ServiceDetailPage() {
       quantity: 1,
       type: isPackage ? 'package' : 'service',
       providerId: service.providerId
-    };
-    addToCart(itemToAdd);
+    });
     setBookingLoading(false);
   };
 
-  const handleUpdateQuantity = (newQuantity) => {
-    if (cartItem) {
-      updateCartItemQuantity(cartItem.cartId, newQuantity);
-    }
+  const handleUpdateQuantity = (newQty) => {
+    if (cartItem) updateCartItemQuantity(cartItem.cartId, newQty);
   };
+
+  const canReply = userRole === "admin" || (userRole === "provider" && currentUser && service?.providerId === currentUser.uid);
+
+  // --- Render ---
 
   if (loading) return <div className="min-h-screen flex justify-center items-center bg-main-bg"><Loader className="animate-spin text-main-accent" size={40} /></div>;
   if (error || !service) return <div className="min-h-screen flex flex-col justify-center items-center bg-main-bg text-main-text"><p className="text-xl font-bold mb-4">{error || "لم يتم العثور على الخدمة"}</p><button onClick={() => navigate("/services")} className="text-main-accent underline">العودة للخدمات</button></div>;
 
-  const canReply = userRole === "admin" || (userRole === "provider" && currentUser && service.providerId === currentUser.uid);
-
   return (
     <div className="min-h-screen bg-main-bg pt-28 pb-20 px-4 md:px-8 relative">
       <div className="max-w-7xl mx-auto">
+
         <button onClick={() => navigate(-1)} className="flex items-center text-second-text mb-8 hover:opacity-80 transition font-bold">
           <ArrowRight className="ml-2" size={20} />
           العودة للقائمة
@@ -320,7 +277,7 @@ function ServiceDetailPage() {
         <section className="flex justify-center w-full">
           <div className="w-full max-w-6xl bg-second-bg rounded-3xl shadow-xl overflow-hidden border border-main-text/5">
 
-
+            {/* 1. Hero Image */}
             <div className="relative h-[400px] md:h-[500px] w-full group">
               <img
                 src={service.imageUrl || "https://placehold.co/800x600"}
@@ -328,7 +285,6 @@ function ServiceDetailPage() {
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
 
               <div className="absolute bottom-6 right-6 md:bottom-10 md:right-10 text-white z-10">
                 {isPackage && (
@@ -349,7 +305,7 @@ function ServiceDetailPage() {
 
             <div className="p-6 md:p-12">
 
-
+              {/* 2. Details */}
               <div className="mb-12">
                 <div className="prose prose-lg prose-invert max-w-none">
                   <h3 className="text-main-text font-bold text-xl mb-3 flex items-center gap-2">
@@ -375,7 +331,7 @@ function ServiceDetailPage() {
                   </div>
                 )}
 
-
+                {/* 3. Pricing Box */}
                 <div className="mt-10 p-1 rounded-2xl bg-gradient-to-br from-main-text/5 to-main-accent/10">
                   <div className="bg-second-bg rounded-xl p-6 md:p-8 border border-main-text/5">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -431,11 +387,11 @@ function ServiceDetailPage() {
                 </div>
               </div>
 
+              {/* 4. Info Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
                 <div className="h-full">
                   {service.providerId && <ProviderInfoCard providerId={service.providerId} />}
                 </div>
-
                 <div className="bg-main-accent/5 border border-main-accent/10 rounded-2xl p-6 flex flex-col justify-center h-full">
                   <div className="flex items-start gap-4">
                     <div className="bg-main-accent text-main-text p-3 rounded-full shadow-md shrink-0">
@@ -444,19 +400,17 @@ function ServiceDetailPage() {
                     <div>
                       <h4 className="font-bold text-main-text text-lg mb-2">ضمان كشتة الذهبي</h4>
                       <p className="text-main-text/70 text-sm leading-relaxed">
-                        رحلتك مضمونة 100%. في حال اختلاف الخدمة عن الوصف، نضمن لك استعادة كامل المبلغ. دعم فني متواجد 24/7 لخدمتك.
+                        رحلتك مضمونة 100%. في حال اختلاف الخدمة عن الوصف، نضمن لك استعادة كامل المبلغ.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-
+              {/* 5. Similar Services */}
               {similarServices.length > 0 && (
                 <div className="mb-16 pt-10 border-t border-main-text/5">
-                  <h2 className="text-main-text font-extrabold text-2xl mb-6">
-                    خدمات قد تعجبك
-                  </h2>
+                  <h2 className="text-main-text font-extrabold text-2xl mb-6">خدمات قد تعجبك</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {similarServices.map((simService) => (
                       <ServiceCard key={simService.id} service={simService} />
@@ -465,7 +419,7 @@ function ServiceDetailPage() {
                 </div>
               )}
 
-
+              {/* 6. Reviews */}
               <div className="pt-10 border-t border-main-text/10">
                 <h3 className="text-2xl font-bold text-main-text mb-8 flex items-center gap-2">
                   <MessageCircle className="text-main-accent" />
@@ -491,7 +445,7 @@ function ServiceDetailPage() {
                     )}
                     <div className="relative">
                       <textarea
-                        className="w-full bg-white text-main-text rounded-xl p-4 min-h-[120px] focus:ring-2 focus:ring-main-accent/50 outline-none resize-none border border-transparent transition placeholder:text-main-text/30"
+                        className="w-full bg-main-bg/50 text-main-text rounded-xl p-4 min-h-[120px] focus:ring-2 focus:ring-main-accent/50 outline-none resize-none border border-transparent transition placeholder:text-main-text/30"
                         placeholder="اكتب تعليقك هنا..."
                         value={newCommentText}
                         onChange={(e) => setNewCommentText(e.target.value)}
@@ -508,7 +462,7 @@ function ServiceDetailPage() {
                   </div>
                 ) : (
                   <div className="bg-main-bg/5 rounded-2xl p-8 text-center mb-10 border border-dashed border-main-text/20">
-                    <p className="text-main-text/70 text-base mb-4 font-medium">سجل دخولك لتشاركنا رأيك في الخدمة</p>
+                    <p className="text-main-text/70 text-base mb-4 font-medium">سجل دخولك لتشاركنا رأيك</p>
                     <Link to="/login" className="inline-flex items-center gap-2 bg-main-text text-second-text px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-main-accent hover:text-main-text transition shadow-md hover:-translate-y-0.5">
                       <LogIn size={18} />
                       تسجيل الدخول
@@ -538,7 +492,6 @@ function ServiceDetailPage() {
                           <p className="text-main-text/80 text-base leading-relaxed">{rating.comment}</p>
                         </div>
 
-                        {/* رد المزود */}
                         {rating.providerReply && (
                           <div className="mt-4 mr-12 md:mr-16 flex items-start gap-3 animate-fade-in">
                             <div className="w-0.5 bg-main-accent/30 rounded-full self-stretch my-1"></div>
@@ -560,7 +513,6 @@ function ServiceDetailPage() {
                             </div>
                           </div>
                         )}
-
 
                         {!rating.providerReply && canReply && (
                           <div className="mt-4 mr-16">

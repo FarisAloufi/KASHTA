@@ -13,13 +13,14 @@ function AddServicePage() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
+  // --- State Management ---
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [isPackage, setIsPackage] = useState(false);
+  const [isPackage, setIsPackage] = useState(false); // Toggles between Service and Package mode
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,6 +29,8 @@ function AddServicePage() {
     description: "",
     featuresInput: ""
   });
+
+  // --- Handlers ---
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,11 +50,13 @@ function AddServicePage() {
     setImagePreview(null);
   };
 
+  // --- Form Submission Logic ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
+    // 1. Basic Validation
     if (!formData.name || !formData.price || !formData.description) {
       setError("الرجاء تعبئة جميع الحقول المطلوبة.");
       return;
@@ -65,15 +70,18 @@ function AddServicePage() {
     setLoading(true);
 
     try {
+      // 2. Upload Image to Firebase Storage
       const imageRef = ref(storage, `services/${Date.now()}_${imageFile.name}`);
       const uploadResult = await uploadBytes(imageRef, imageFile);
       const downloadUrl = await getDownloadURL(uploadResult.ref);
 
+      // 3. Process Features (Split by new line)
       const featuresArray = formData.featuresInput
         .split("\n")
         .map(line => line.trim())
         .filter(line => line !== "");
 
+      // 4. Prepare Common Data
       const baseData = {
         category: formData.category,
         description: formData.description,
@@ -85,6 +93,7 @@ function AddServicePage() {
         ratingCount: 0
       };
 
+      // 5. Save to Firestore based on Type (Package vs Service)
       if (isPackage) {
         await addDoc(collection(db, "packages"), {
           ...baseData,
@@ -103,18 +112,20 @@ function AddServicePage() {
 
       setSuccess(isPackage ? "تم نشر البكج بنجاح!" : "تم نشر الخدمة بنجاح!");
       
+      // 6. Redirect after success
       setTimeout(() => {
         navigate("/services");
       }, 2000);
 
     } catch (err) {
-      console.error("Error adding:", err);
+      console.error("Error adding service:", err);
       setError("حدث خطأ أثناء النشر، حاول مرة أخرى.");
     } finally {
       setLoading(false);
     }
   };
 
+  // --- Live Preview Object ---
   const previewService = {
     id: "preview",
     name: formData.name || (isPackage ? "عنوان البكج..." : "عنوان الخدمة..."),
@@ -127,6 +138,7 @@ function AddServicePage() {
     isPackage: isPackage
   };
 
+  // Common Styles
   const inputClasses = "w-full p-4 rounded-xl border border-main-text/10 focus:border-main-accent focus:ring-2 focus:ring-main-accent/20 outline-none bg-main-bg/5 text-main-text placeholder-main-text/30 transition-all font-bold text-sm";
   const labelClasses = "block text-main-text font-bold mb-2 text-sm flex items-center gap-2";
 
@@ -134,6 +146,7 @@ function AddServicePage() {
     <div className="min-h-screen bg-main-bg pt-28 pb-20 px-4 md:px-8 relative">
       <div className="max-w-6xl mx-auto">
         
+        {/* Back Button */}
         <button onClick={() => navigate(-1)} className="flex items-center text-second-text mb-8 hover:opacity-80 transition font-bold">
           <ArrowRight className="ml-2" size={20} />
           العودة للخلف
@@ -144,7 +157,7 @@ function AddServicePage() {
                 
                 <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[700px]">
                     
-
+                    {/* === Right Side: Input Form === */}
                     <div className="lg:col-span-7 p-8 md:p-12 order-2 lg:order-1">
                         
                         <div className="mb-8">
@@ -157,14 +170,14 @@ function AddServicePage() {
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             
-
+                            {/* Type Toggle Buttons */}
                             <div className="flex bg-main-bg/10 p-1.5 rounded-2xl border border-main-text/10 mb-6">
                                 <button
                                 type="button"
                                 onClick={() => setIsPackage(false)}
                                 className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${
                                     !isPackage 
-                                    ? "bg-main-text text-second-bg shadow-md scale-[1.02]" 
+                                    ? "bg-main-text text-second-bg shadow-md scale-[1.02]" // Active Style (Brown)
                                     : "text-main-text/70 hover:bg-main-text/10"
                                 }`}
                                 >
@@ -175,7 +188,7 @@ function AddServicePage() {
                                 onClick={() => setIsPackage(true)}
                                 className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${
                                     isPackage 
-                                    ? "bg-main-text text-second-bg shadow-md scale-[1.02]" 
+                                    ? "bg-main-text text-second-bg shadow-md scale-[1.02]" // Active Style (Brown)
                                     : "text-main-text/70 hover:bg-main-text/10"
                                 }`}
                                 >
@@ -183,6 +196,7 @@ function AddServicePage() {
                                 </button>
                             </div>
                             
+                            {/* Alerts */}
                             {error && (
                                 <div className="bg-red-500/10 text-red-600 p-4 rounded-xl font-bold text-sm border border-red-500/20 flex items-center gap-2 animate-pulse">
                                     <AlertCircle size={18} /> {error}
@@ -194,7 +208,7 @@ function AddServicePage() {
                                 </div>
                             )}
 
-
+                            {/* Service Name */}
                             <div>
                                 <label className={labelClasses}>
                                     <FileText size={16} className="text-main-accent" />
@@ -210,6 +224,7 @@ function AddServicePage() {
                                 />
                             </div>
 
+                            {/* Price & Category */}
                             <div className="grid grid-cols-2 gap-5">
                                 <div>
                                     <label className={labelClasses}>
@@ -243,6 +258,7 @@ function AddServicePage() {
                                 </div>
                             </div>
 
+                            {/* Image Upload */}
                             <div>
                                 <label className={labelClasses}>
                                     <ImageIcon size={16} className="text-main-accent" />
@@ -271,6 +287,7 @@ function AddServicePage() {
                                 )}
                             </div>
 
+                            {/* Description */}
                             <div>
                                 <label className={labelClasses}>
                                     وصف تفصيلي
@@ -285,6 +302,7 @@ function AddServicePage() {
                                 />
                             </div>
 
+                            {/* Features List */}
                             <div>
                                 <label className="block text-main-text font-bold mb-2 text-sm flex justify-between items-center">
                                     <span className="flex items-center gap-2"><CheckCircle size={16} className="text-main-accent" /> {isPackage ? "محتويات البكج" : "المميزات الإضافية"}</span>
@@ -300,6 +318,7 @@ function AddServicePage() {
                                 />
                             </div>
 
+                            {/* Submit Button */}
                             <div className="pt-4">
                                 <button 
                                     type="submit" 
@@ -314,7 +333,7 @@ function AddServicePage() {
                         </form>
                     </div>
 
-
+                    {/* === Left Side: Live Preview === */}
                     <div className="lg:col-span-5 bg-main-bg/5 p-8 md:p-12 border-t lg:border-t-0 lg:border-r border-main-text/10 flex flex-col items-center justify-start order-1 lg:order-2">
                         <div className="sticky top-24 w-full max-w-[340px]">
                             <div className="text-center mb-8">
@@ -323,6 +342,7 @@ function AddServicePage() {
                                 </span>
                             </div>
                             
+                            {/* Card Preview */}
                             <div className="transform transition-all duration-500 hover:scale-[1.02]"> 
                                 <ServiceCard service={previewService} userRole="customer" />
                             </div>

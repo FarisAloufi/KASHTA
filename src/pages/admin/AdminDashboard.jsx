@@ -8,7 +8,11 @@ import {
   ShieldCheck, Briefcase, FileText, Calendar, Loader
 } from "lucide-react";
 
+// --- Sub-Components ---
 
+/**
+ * Reusable Statistic Card Component
+ */
 const StatCard = ({ title, value, icon: Icon, color }) => (
   <div className="bg-second-bg p-6 rounded-2xl shadow-lg border border-main-text/10 flex items-center gap-4 transition-transform hover:-translate-y-1">
     <div className={`p-4 rounded-full ${color} text-white shadow-md`}>
@@ -21,7 +25,10 @@ const StatCard = ({ title, value, icon: Icon, color }) => (
   </div>
 );
 
+// --- Main Component ---
+
 function AdminDashboard() {
+  // State Management
   const [stats, setStats] = useState({
     usersCount: 0,
     providersCount: 0,
@@ -33,21 +40,34 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
 
-
+  // Initial Data Fetching
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // 1. Prepare parallel queries
+        const usersPromise = getDocs(collection(db, "users"));
+        const bookingsPromise = getDocs(collection(db, "bookings"));
+        const appsQuery = query(
+          collection(db, "providerApplications"),
+          where("status", "==", "pending"),
+          orderBy("submittedAt", "desc")
+        );
+        const appsPromise = getDocs(appsQuery);
 
-        const usersSnap = await getDocs(collection(db, "users"));
-        const bookingsSnap = await getDocs(collection(db, "bookings"));
+        // 2. Execute all queries
+        const [usersSnap, bookingsSnap, appsSnap] = await Promise.all([
+          usersPromise,
+          bookingsPromise,
+          appsPromise
+        ]);
 
+        // 3. Process Statistics
         let users = 0;
         let providers = 0;
         let revenue = 0;
 
         usersSnap.forEach(doc => {
-          const role = doc.data().role;
-          if (role === 'provider') providers++;
+          if (doc.data().role === 'provider') providers++;
           else users++;
         });
 
@@ -62,19 +82,12 @@ function AdminDashboard() {
           totalRevenue: revenue
         });
 
-
-        const appsQuery = query(
-          collection(db, "providerApplications"),
-          where("status", "==", "pending"),
-          orderBy("submittedAt", "desc")
-        );
-        const appsSnap = await getDocs(appsQuery);
+        // 4. Process Applications
         const appsData = appsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
         setApplications(appsData);
 
       } catch (error) {
-        console.error("Error fetching admin data:", error);
+        console.error("Error fetching admin dashboard data:", error);
       } finally {
         setLoading(false);
       }
@@ -83,55 +96,62 @@ function AdminDashboard() {
     fetchData();
   }, []);
 
-
+  // Handle Application Approval
   const handleApprove = async (app) => {
     if (!window.confirm(`هل أنت متأكد من قبول "${app.fullName}"؟`)) return;
+    
     setProcessingId(app.id);
 
     try {
+      // 1. Update application status
       await updateDoc(doc(db, "providerApplications", app.id), {
         status: "approved",
         reviewedAt: new Date()
       });
 
-
+      // 2. Promote user to 'provider' role
       if (app.uid) {
         await updateDoc(doc(db, "users", app.uid), {
           role: "provider"
         });
       }
 
+      // 3. Update UI state optimistically
       setApplications(prev => prev.filter(item => item.id !== app.id));
       alert("تم قبول مقدم الخدمة بنجاح! 🎉");
 
     } catch (error) {
-      console.error("Error approving:", error);
+      console.error("Error approving application:", error);
       alert("حدث خطأ أثناء العملية.");
     } finally {
       setProcessingId(null);
     }
   };
 
-
+  // Handle Application Rejection
   const handleReject = async (appId) => {
     if (!window.confirm("هل أنت متأكد من رفض هذا الطلب؟")) return;
+    
     setProcessingId(appId);
 
     try {
+      // 1. Update application status to rejected
       await updateDoc(doc(db, "providerApplications", appId), {
         status: "rejected",
         reviewedAt: new Date()
       });
 
+      // 2. Update UI state optimistically
       setApplications(prev => prev.filter(item => item.id !== appId));
 
     } catch (error) {
-      console.error("Error rejecting:", error);
+      console.error("Error rejecting application:", error);
     } finally {
       setProcessingId(null);
     }
   };
 
+  // Loading View
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-main-bg">
@@ -140,10 +160,12 @@ function AdminDashboard() {
     );
   }
 
+  // Dashboard View
   return (
     <div className="min-h-screen bg-main-bg py-10 px-4">
       <div className="container mx-auto max-w-7xl">
 
+        {/* Dashboard Header */}
         <div className="mb-10">
           <h1 className="text-4xl font-extrabold text-second-text mb-2 flex items-center gap-3">
             <ShieldCheck size={40} /> لوحة تحكم الإدارة
@@ -151,7 +173,7 @@ function AdminDashboard() {
           <p className="text-second-text/70">نظرة عامة على أداء المنصة والطلبات الجديدة</p>
         </div>
 
-
+        {/* Statistics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <StatCard
             title="إجمالي المبيعات"
@@ -179,7 +201,7 @@ function AdminDashboard() {
           />
         </div>
 
-
+        {/* Applications Section */}
         <div className="bg-second-bg rounded-3xl p-8 shadow-xl border border-main-text/10">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-extrabold text-main-text flex items-center gap-2">
@@ -197,10 +219,11 @@ function AdminDashboard() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {applications.map((app) => (
-                <div key={app.id} className="bg-white/50 p-6 rounded-2xl border border-main-text/10 relative overflow-hidden">
+                <div key={app.id} className="bg-white/50 p-6 rounded-2xl border border-main-text/10 relative overflow-hidden transition-all hover:shadow-md">
                   <div className="absolute top-0 bottom-0 right-0 w-2 bg-main-accent"></div>
 
                   <div className="mr-4">
+                    {/* Applicant Info Header */}
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <h3 className="text-xl font-bold text-main-text">{app.fullName}</h3>
@@ -211,6 +234,7 @@ function AdminDashboard() {
                       </span>
                     </div>
 
+                    {/* Application Details Grid */}
                     <div className="grid grid-cols-2 gap-4 text-sm mb-6 bg-main-bg/5 p-4 rounded-xl">
                       <div>
                         <p className="text-main-text/50 font-bold mb-1">رقم الهوية</p>
@@ -234,6 +258,7 @@ function AdminDashboard() {
                       </div>
                     </div>
 
+                    {/* Action Buttons */}
                     <div className="flex gap-3">
                       <button
                         onClick={() => handleApprove(app)}
