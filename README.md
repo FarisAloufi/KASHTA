@@ -88,6 +88,11 @@ This project was developed with ❤️ by:
 | **[Faris Aloufi]** | 
 | **[Mohammad Alamri]** |
 
+| Student Name | Student ID | Role |
+|--------------|------------|------|
+| **[Faris Aloufi]** | **[2137604]** 
+| **[Mohammad Alamri]** | **[2035814]** | 
+
 
 ### 👨‍🏫 Supervised By:
 **Dr. [Raed Alghamdi]**
