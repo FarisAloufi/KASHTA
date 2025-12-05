@@ -110,9 +110,12 @@ This project was developed with ❤️ by:
    ```bash
    git clone [https://github.com/YOUR-USERNAME/kashta-project.git](https://github.com/YOUR-USERNAME/kashta-project.git)
    cd kashta-project
+   ```
 2. **Install dependencies:**
  ```bash
 npm install
+```
 3. **Run the development server:**
 ```bash
 npm run dev
+```
