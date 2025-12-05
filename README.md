@@ -1,7 +1,7 @@
 # ⛺ Kashta (كشتة) - Camping Booking Platform
 
 <div align="center">
-  <img src="./src/assets/kashtalogo.png" alt="Kashta Logo" width="200" />
+  <img src="./src/assets/KashtaLogo.png" alt="Kashta Logo" width="200" />
   <br />
   
   <h3>CPIT 499 Graduation Project</h3>
