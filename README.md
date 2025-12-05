@@ -1,24 +1,22 @@
 # ⛺ Kashta (كشتة) - Camping Booking Platform
 
 <div align="center">
-  <img src="./src/assets/KashtaLogo.png" alt="Kashta Logo" width="200" />
+  <img src="./src/assets/kashtalogo.png" alt="Kashta Logo" width="200" />
   <br />
   
   <h3>CPIT 499 Graduation Project</h3>
   <p>Faculty of Computing and Information Technology (FCIT)<br/>King Abdulaziz University (KAU)</p>
 
   <p>
-    <a href="#about">About</a> •
-    <a href="#architecture">Architecture</a> •
-    <a href="#features">Features</a> •
-    <a href="#tech-stack">Tech Stack</a> •
-    <a href="#team">Team</a>
+    <a href="#-about-the-project">About</a> •
+    <a href="#-system-architecture">Architecture</a> •
+    <a href="#-features">Features</a> •
+    <a href="#-tech-stack">Tech Stack</a> •
+    <a href="#-team-members">Team</a>
   </p>
 </div>
 
 ---
-
-<div id="about"></div>
 
 ## 📖 About the Project (نبذة عن المشروع)
 
@@ -30,8 +28,6 @@ The platform allows users to book tents, equipment, and full packages, select th
 
 ---
 
-<div id="architecture"></div>
-
 ## 🏗️ System Architecture (هيكلة النظام)
 
 To demonstrate the software engineering principles applied in this project, here are the architectural diagrams.
@@ -39,18 +35,16 @@ To demonstrate the software engineering principles applied in this project, here
 ### 1. High-Level Architecture
 This diagram illustrates the layered architecture, separating Logic, State Management, Pages, and Components.
 
-![High Level Architecture](./docs/class-diagram-high-level.png)
+![High Level Architecture](./docs/class-diagram-high-level.jpg)
 
 ### 2. Detailed Class Relationships
 A detailed view of how components interact, including Composition and Dependency relationships.
 
-![Detailed Class Diagram](./docs/class-diagram-detailed.png)
+![Detailed Class Diagram](./docs/class-diagram-detailed.jpg)
 
 > *Note: The diagrams above illustrate the "Component-Based Architecture" used in React.*
 
 ---
-
-<div id="features"></div>
 
 ## ✨ Key Features (المميزات)
 
@@ -73,8 +67,6 @@ A detailed view of how components interact, including Composition and Dependency
 
 ---
 
-<div id="tech-stack"></div>
-
 ## 🛠️ Tech Stack (التقنيات المستخدمة)
 
 | Category | Technology |
@@ -88,19 +80,18 @@ A detailed view of how components interact, including Composition and Dependency
 
 ---
 
-<div id="team"></div>
-
 ## 👥 Team Members (فريق العمل)
 
 This project was developed with ❤️ by:
 
-| Student Name | Student ID |
-|--------------|------------|
-| **Faris Aloufi** | **2137604** |
-| **Mohammad Alamri** | **2035814** |
+| Student Name | Student ID | Role |
+|--------------|------------|------|
+| **[اسمك الكامل هنا]** | **[الرقم الجامعي]** | Lead Developer / Full Stack |
+| **[اسم الطالب 2]** | **[الرقم الجامعي]** | Frontend Developer |
+
 
 ### 👨‍🏫 Supervised By:
-**Dr. Raed Alghamdi**
+**Dr. [Raed Alghamdi]**
 
 ---
 
@@ -110,12 +101,3 @@ This project was developed with ❤️ by:
    ```bash
    git clone [https://github.com/YOUR-USERNAME/kashta-project.git](https://github.com/YOUR-USERNAME/kashta-project.git)
    cd kashta-project
-   ```
-2. **Install dependencies:**
- ```bash
-npm install
-```
-3. **Run the development server:**
-```bash
-npm run dev
-```
