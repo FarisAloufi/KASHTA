@@ -117,13 +117,14 @@ function CartPage() {
         orderGroupId: numericOrderId,
         userId: currentUser.uid,
         userName: userData?.name || currentUser.email || "عميل",
-        services: cartItems.map(item => ({
+        items: cartItems.map(item => ({
           serviceId: item.serviceId,
           serviceName: item.serviceName,
           servicePrice: Number(item.servicePrice),
           quantity: Number(item.quantity),
           imageUrl: item.imageUrl || "",
-          providerId: item.providerId || ""
+          providerId: item.providerId || "",
+          status: 'pending' 
         })),
         bookingDate: new Date(bookingDate).toISOString(),
         location: location,

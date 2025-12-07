@@ -7,12 +7,12 @@ import StatusTracker from "../components/orders/StatusTracker";
 import RatingForm from "../components/orders/RatingForm";
 import DisplayRating from "../components/orders/DisplayRating";
 import { useAuth } from "../context/AuthContext";
-// Added Clock and CheckCircle2 to imports
-import { User, MapPin, Calendar, Hash, ShoppingBag, CreditCard, Clock, CheckCircle2 } from "lucide-react";
+// Added icons for item status
+import { User, MapPin, Calendar, Hash, ShoppingBag, CreditCard, Clock, CheckCircle2, Truck, ChefHat, XCircle } from "lucide-react";
 
 // --- Configuration ---
 
-// Status configuration map (Color & Text)
+// Main Order Status Config
 const STATUS_CONFIG = {
   pending: {
     color: "bg-amber-100 text-amber-800 border border-amber-200",
@@ -24,7 +24,7 @@ const STATUS_CONFIG = {
   },
   ready: {
     color: "bg-emerald-100 text-emerald-800 border border-emerald-200",
-    text: "في الطريق"
+    text: "في الطريق / جاهز"
   },
   completed: {
     color: "bg-gray-100 text-gray-800 border border-gray-200",
@@ -37,6 +37,24 @@ const STATUS_CONFIG = {
   default: {
     color: "bg-gray-100 text-gray-800 border border-gray-200",
     text: "غير معروف"
+  }
+};
+
+// --- Helpers ---
+
+// Helper to get individual item status style
+const getItemStatusConfig = (status) => {
+  switch (status) {
+    case 'ready':
+      return { icon: Truck, text: 'جاهز للتسليم', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    case 'completed':
+      return { icon: CheckCircle2, text: 'تم التسليم', color: 'bg-green-50 text-green-700 border-green-200' };
+    case 'confirmed':
+      return { icon: ChefHat, text: 'قيد التجهيز', color: 'bg-orange-50 text-orange-700 border-orange-200' };
+    case 'cancelled':
+      return { icon: XCircle, text: 'ملغي', color: 'bg-red-50 text-red-700 border-red-200' };
+    default: // pending
+      return { icon: Clock, text: 'قيد الانتظار', color: 'bg-amber-50 text-amber-700 border-amber-200' };
   }
 };
 
@@ -87,24 +105,41 @@ const ServicesList = ({ services, totalPrice }) => (
     </h3>
     
     <div className="space-y-4">
-      {services.map((item, index) => (
-        <div key={index} className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-main-bg/5 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-4 w-full sm:w-auto mb-3 sm:mb-0">
-            {item.imageUrl ? (
-                <img src={item.imageUrl} alt="" className="w-16 h-16 rounded-xl object-cover shadow-sm" />
-            ) : (
-                <div className="w-16 h-16 bg-gray-200 rounded-xl animate-pulse"></div>
-            )}
-            <div>
-              <p className="font-bold text-main-text text-lg">{item.serviceName}</p>
-              <p className="text-sm text-main-text/50 font-medium bg-main-bg/10 px-2 py-0.5 rounded-lg w-fit mt-1">الكمية: {item.quantity}</p>
+      {services.map((item, index) => {
+        // Get status config for this specific item
+        const itemStatus = getItemStatusConfig(item.status || 'pending');
+        const StatusIcon = itemStatus.icon;
+
+        return (
+          <div key={index} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 rounded-2xl shadow-sm border border-main-bg/5 hover:shadow-md transition-shadow gap-4">
+            
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              {item.imageUrl ? (
+                  <img src={item.imageUrl} alt="" className="w-16 h-16 rounded-xl object-cover shadow-sm" />
+              ) : (
+                  <div className="w-16 h-16 bg-gray-200 rounded-xl animate-pulse"></div>
+              )}
+              
+              <div className="flex flex-col gap-1">
+                <p className="font-bold text-main-text text-lg">{item.serviceName}</p>
+                <div className="flex flex-wrap gap-2">
+                   <p className="text-sm text-main-text/50 font-medium bg-main-bg/10 px-2 py-0.5 rounded-lg w-fit">الكمية: {item.quantity}</p>
+                   
+                   {/* --- Item Status Badge --- */}
+                   <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-lg font-bold border ${itemStatus.color}`}>
+                      <StatusIcon size={12} />
+                      {itemStatus.text}
+                   </span>
+                </div>
+              </div>
             </div>
+
+            <span className="font-black text-main-text text-xl bg-main-bg/5 px-4 py-2 rounded-xl self-end sm:self-center">
+              {(Number(item.servicePrice || item.price) * Number(item.quantity || 1)).toLocaleString("ar-SA")} <span className="text-xs">ر.س</span>
+            </span>
           </div>
-          <span className="font-black text-main-text text-xl bg-main-bg/5 px-4 py-2 rounded-xl">
-            {(Number(item.servicePrice || item.price) * Number(item.quantity || 1)).toLocaleString("ar-SA")} <span className="text-xs">ر.س</span>
-          </span>
-        </div>
-      ))}
+        );
+      })}
     </div>
 
     <div className="flex flex-col sm:flex-row justify-between items-center mt-8 pt-6 border-t-2 border-dashed border-main-text/10">
@@ -122,13 +157,12 @@ const ServicesList = ({ services, totalPrice }) => (
 
 function BookingDetailPage() {
   const { id } = useParams();
-  const { userRole } = useAuth();
+  const { userRole, currentUser } = useAuth();
   
   const [mainBooking, setMainBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Real-time listener for the specific booking
   useEffect(() => {
     setLoading(true);
     setError("");
@@ -141,10 +175,27 @@ function BookingDetailPage() {
       (querySnapshot) => {
         if (!querySnapshot.empty) {
           const docData = querySnapshot.docs[0].data();
-          setMainBooking({
+          let bookingData = {
             id: querySnapshot.docs[0].id,
             ...docData
-          });
+          };
+
+          // --- Provider Isolation Logic ---
+          const allItems = bookingData.items || bookingData.services || [];
+
+          if (userRole === "provider" && currentUser) {
+            const myItems = allItems.filter(item => item.providerId === currentUser.uid);
+            const myTotal = myItems.reduce(
+                (sum, item) => sum + (Number(item.servicePrice) * Number(item.quantity)), 0
+            );
+            bookingData.services = myItems;
+            bookingData.totalPrice = myTotal;
+          } else {
+            bookingData.services = allItems;
+          }
+          // --------------------------------
+
+          setMainBooking(bookingData);
         } else {
           setError("لم يتم العثور على هذا الطلب.");
         }
@@ -158,7 +209,7 @@ function BookingDetailPage() {
     );
 
     return () => unsubscribe();
-  }, [id]);
+  }, [id, userRole, currentUser]);
 
   // Loading View
   if (loading) {
@@ -172,7 +223,6 @@ function BookingDetailPage() {
     );
   }
 
-  // Error View
   if (error) return <div className="flex justify-center items-center h-screen"><h1 className="text-2xl font-bold text-red-500 bg-red-50 p-6 rounded-2xl border border-red-100">{error}</h1></div>;
   if (!mainBooking) return null;
 
@@ -200,7 +250,7 @@ function BookingDetailPage() {
             <StatusTracker status={mainBooking.status} />
           </div>
 
-          {/* 3. Services List */}
+          {/* 3. Services List (Now shows Individual Item Status) */}
           <ServicesList 
             services={mainBooking.services || []} 
             totalPrice={mainBooking.totalPrice || 0} 

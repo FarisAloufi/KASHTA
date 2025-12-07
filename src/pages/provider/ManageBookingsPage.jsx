@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+// 1. أضفنا getDoc هنا في الاستيرادات العلوية
 import {
-  collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs
+  collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, getDoc
 } from "firebase/firestore";
 import { db } from "../../firebase/firebaseConfig";
 import { useAuth } from "../../context/AuthContext";
@@ -10,12 +11,11 @@ import ServiceCard from "../../components/services/ServiceCard";
 
 import {
   LayoutGrid, Clock, ChefHat, Truck, CheckCircle2, XCircle, ChevronDown,
-  Package, ShoppingBag, PlusCircle, Loader
+  Package, ShoppingBag, PlusCircle, Loader, AlertCircle
 } from "lucide-react";
 
 // --- Configuration ---
 
-// Booking Status Tabs Configuration
 const BOOKING_TABS = [
   { id: "all", label: "الكل", icon: LayoutGrid },
   { id: "pending", label: "قيد الانتظار", icon: Clock },
@@ -31,23 +31,21 @@ function ManageBookingsPage() {
   const { currentUser, userRole } = useAuth();
 
   // --- State Management ---
-  const [activeSection, setActiveSection] = useState("bookings"); // 'bookings' or 'services'
+  const [activeSection, setActiveSection] = useState("bookings");
   const [activeBookingTab, setActiveBookingTab] = useState("all");
   
   // Data States
   const [bookings, setBookings] = useState([]);
   const [services, setServices] = useState([]);
   
-  // Loading & Processing States
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
 
-  // --- Effect 1: Real-time Bookings Listener ---
+  // --- Effect 1: Bookings Listener ---
   useEffect(() => {
     if (!currentUser) return;
 
-    // Listen to 'bookings' collection ordered by date
     const bookingsRef = collection(db, "bookings");
     const q = query(bookingsRef, orderBy("createdAt", "desc"));
 
@@ -57,29 +55,30 @@ function ManageBookingsPage() {
         ...doc.data(),
       }));
 
-      // Role-Based Logic:
-      // If user is a 'provider', we must filter bookings to show ONLY orders containing their services.
-      // We also recalculate the total price to reflect ONLY their share of the order.
+      // Role-Based Logic for Provider
       if (userRole === "provider") {
         fetchedBookings = fetchedBookings
-          .filter(booking => 
-            booking.services?.some(item => item.providerId === currentUser.uid)
-          )
+          .filter(booking => {
+            const items = booking.items || booking.services || [];
+            return items.some(item => item.providerId === currentUser.uid);
+          })
           .map(booking => {
-            const myServices = booking.services.filter(
-              item => item.providerId === currentUser.uid
-            );
+            const items = booking.items || booking.services || [];
+            const myServices = items.filter(item => item.providerId === currentUser.uid);
             
-            // Recalculate total for this provider's portion only
             const myTotal = myServices.reduce(
               (sum, item) => sum + (Number(item.servicePrice) * Number(item.quantity)), 0
             );
 
+            const myStatus = myServices[0]?.status || 'pending';
+
             return {
               ...booking,
-              services: myServices,
+              services: myServices, // للعرض
+              items: myServices,    // للمنطق
               totalPrice: myTotal,
-              totalItems: myServices.length
+              totalItems: myServices.length,
+              status: myStatus 
             };
           });
       }
@@ -91,7 +90,7 @@ function ManageBookingsPage() {
     return () => unsubscribe();
   }, [currentUser, userRole]);
 
-  // --- Effect 2: Fetch Services (On Demand) ---
+  // --- Effect 2: Fetch Services ---
   useEffect(() => {
     const fetchServices = async () => {
       if (!currentUser) return;
@@ -101,7 +100,6 @@ function ManageBookingsPage() {
         const servicesRef = collection(db, "services");
         let q;
 
-        // Admin sees all services; Provider sees only theirs
         if (userRole === "admin") {
           q = query(servicesRef, orderBy("createdAt", "desc"));
         } else {
@@ -122,7 +120,6 @@ function ManageBookingsPage() {
       }
     };
 
-    // Only fetch if the user switches to the Services tab
     if (activeSection === "services") {
       fetchServices();
     }
@@ -133,7 +130,38 @@ function ManageBookingsPage() {
   const handleStatusChange = async (bookingId, newStatus) => {
     setUpdatingId(bookingId);
     try {
-      await updateDoc(doc(db, "bookings", bookingId), { status: newStatus });
+      // 2. حذفنا السطر الخطأ واستخدمنا getDoc المستوردة في الأعلى
+      const docRef = doc(db, "bookings", bookingId);
+      const snapshot = await getDoc(docRef);
+      
+      if (!snapshot.exists()) return;
+      
+      const fullBookingData = snapshot.data();
+      const allItems = fullBookingData.items || fullBookingData.services || [];
+
+      // Update MY items only
+      const updatedItems = allItems.map(item => {
+        if (item.providerId === currentUser.uid) {
+          return { ...item, status: newStatus };
+        }
+        return item;
+      });
+
+      // Aggregation Check
+      const isAllCompleted = updatedItems.every(item => item.status === 'completed');
+      const isAllReady = updatedItems.every(item => item.status === 'ready' || item.status === 'completed');
+
+      let newMainStatus = fullBookingData.status;
+      if (isAllCompleted) newMainStatus = 'completed';
+      else if (isAllReady) newMainStatus = 'ready';
+      else newMainStatus = 'pending';
+
+      await updateDoc(docRef, { 
+        items: updatedItems,
+        services: updatedItems,
+        status: newMainStatus 
+      });
+
     } catch (error) {
       console.error("Error updating status:", error);
       alert("حدث خطأ أثناء تحديث الحالة");
@@ -144,10 +172,8 @@ function ManageBookingsPage() {
 
   const handleDeleteService = async (id) => {
     if (!window.confirm("هل أنت متأكد من حذف هذه الخدمة نهائياً؟")) return;
-    
     try {
       await deleteDoc(doc(db, "services", id));
-      // Optimistic update
       setServices((prev) => prev.filter((item) => item.id !== id));
       alert("تم حذف الخدمة بنجاح");
     } catch (error) {
@@ -155,8 +181,7 @@ function ManageBookingsPage() {
     }
   };
 
-  // --- Filter Logic ---
-  
+  // --- Helpers ---
   const getBookingCount = (status) => bookings.filter((b) => b.status === status).length;
   
   const filteredBookings = activeBookingTab === "all" 
@@ -177,7 +202,6 @@ function ManageBookingsPage() {
     <div className="bg-main-bg min-h-screen py-8 px-4 md:px-8">
       <div className="container mx-auto max-w-7xl">
 
-        {/* Top Navigation Switcher (Bookings vs Services) */}
         <div className="mb-8">
            <div className="flex justify-center bg-second-bg p-1.5 rounded-2xl w-fit mx-auto shadow-lg border border-main-text/10">
               <button 
@@ -201,11 +225,8 @@ function ManageBookingsPage() {
            </div>
         </div>
 
-        {/* === Bookings Section === */}
         {activeSection === "bookings" && (
           <div className="animate-fade-in">
-            
-            {/* Status Tabs */}
             <div className="flex flex-wrap gap-3 mb-8 justify-center md:justify-start">
               {BOOKING_TABS.map((tab) => {
                 const count = tab.id === 'all' ? bookings.length : getBookingCount(tab.id);
@@ -232,7 +253,6 @@ function ManageBookingsPage() {
               })}
             </div>
 
-            {/* Bookings Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredBookings.length === 0 ? (
                 <div className="col-span-full text-center py-24 bg-second-bg/10 rounded-3xl border-2 border-dashed border-second-text/20">
@@ -243,8 +263,32 @@ function ManageBookingsPage() {
                 filteredBookings.map((booking) => (
                   <BookingCard key={booking.id} booking={booking}>
                     
-                    {/* Status Updater Dropdown */}
-                    <div className="mt-4 pt-4 border-t border-main-text/10">
+                    {/* ====== 1. عرض تفاصيل المنتجات ====== */}
+                    <div className="border-t border-main-text/5 pt-4 mb-4">
+                      <p className="text-xs font-bold text-main-text/50 mb-2 flex items-center gap-1">
+                        <CheckCircle2 size={12} /> الخدمات المطلوبة منك:
+                      </p>
+                      <div className="space-y-3">
+                        {(booking.items || booking.services).map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-3 bg-main-bg/5 p-2 rounded-lg">
+                            <img 
+                              src={item.imageUrl || "https://placehold.co/50"} 
+                              alt={item.serviceName} 
+                              className="w-10 h-10 rounded-md object-cover"
+                            />
+                            <div className="flex-1">
+                              <p className="text-sm font-bold text-main-text">{item.serviceName}</p>
+                              <p className="text-xs text-main-text/60">
+                                الكمية: {item.quantity} × {Number(item.servicePrice).toLocaleString()} ريال
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ====== 2. قائمة تحديث الحالة ====== */}
+                    <div className="pt-2 border-t border-main-text/10">
                       <label className="block text-xs font-bold text-main-text mb-1.5">تحديث الحالة:</label>
                       <div className="relative">
                         <select
@@ -270,7 +314,6 @@ function ManageBookingsPage() {
           </div>
         )}
 
-        {/* === Services Section === */}
         {activeSection === "services" && (
           <div className="animate-fade-in">
              <div className="flex justify-between items-center mb-6">
