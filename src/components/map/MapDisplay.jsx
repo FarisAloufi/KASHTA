@@ -1,28 +1,22 @@
 import React from "react";
-import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import { Loader } from "lucide-react";
 
-// --- Configuration ---
-const TILE_LAYER_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-const DEFAULT_ZOOM = 13;
-
-// Map container styles
-// Height is set to 100% to fill the parent container defined in the page
-const CONTAINER_STYLE = {
+const containerStyle = {
   width: "100%",
-  height: "100%", 
-  borderRadius: "1rem", // Matches 'rounded-2xl'
-  zIndex: 0
+  height: "100%",
+  borderRadius: "1rem",
 };
 
-// --- Main Component ---
+const libraries = [];
 
-/**
- * A static map component that displays a specific location marker.
- * User interaction (zoom/drag) is disabled for display purposes.
- */
 function MapDisplay({ location }) {
-  // 1. Validation: Guard clause for missing location data
+const { isLoaded } = useJsApiLoader({
+  id: "google-map-script",
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY, 
+  libraries: libraries,
+});
+
   if (!location || !location.lat || !location.lng) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-500 rounded-2xl">
@@ -31,27 +25,34 @@ function MapDisplay({ location }) {
     );
   }
 
-  const position = [location.lat, location.lng];
+  const center = {
+    lat: Number(location.lat),
+    lng: Number(location.lng)
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="flex justify-center items-center w-full h-full bg-gray-100 rounded-xl">
+        <Loader className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
   return (
-    <MapContainer
-      center={position}
-      zoom={DEFAULT_ZOOM}
-      style={CONTAINER_STYLE}
-      // Disable all interactions to keep it static
-      scrollWheelZoom={false}
-      dragging={false}
-      zoomControl={false}
-      doubleClickZoom={false}
-      touchZoom={false}
+    <GoogleMap
+      mapContainerStyle={containerStyle}
+      center={center}
+      zoom={14}
+      options={{
+        disableDefaultUI: true, // إخفاء أزرار التحكم ليكون العرض نظيفًا
+        draggable: false,       // منع التحريك (اختياري)
+        zoomControl: false,
+        scrollwheel: false,
+        disableDoubleClickZoom: true,
+      }}
     >
-      <TileLayer
-        attribution={TILE_ATTRIBUTION}
-        url={TILE_LAYER_URL}
-      />
-
-      <Marker position={position} />
-    </MapContainer>
+      <Marker position={center} />
+    </GoogleMap>
   );
 }
 

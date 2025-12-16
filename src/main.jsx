@@ -8,24 +8,29 @@ import "./index.css";
 // --- Context Providers ---
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
+import { ThemeProvider } from "./context/ThemeContext"; // <--- 1. تم إضافة هذا الاستيراد
 
 // --- Main Application Component ---
 import App from "./App.jsx";
+import './i18n';
 
 // --- Application Entry Point ---
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     {/* Provider Hierarchy:
-        1. BrowserRouter: Enables routing across the application.
-        2. AuthProvider: Manages user authentication state (Login/Logout).
-        3. CartProvider: Manages shopping cart state (Add/Remove items).
-        4. App: The root component containing layouts and pages.
+        1. BrowserRouter: Enables routing.
+        2. AuthProvider: Auth state.
+        3. CartProvider: Cart state.
+        4. ThemeProvider: Dark/Light Mode state. (NEW)
+        5. App: Root component.
     */}
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
-          <App />
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>

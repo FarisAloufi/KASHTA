@@ -1,0 +1,659 @@
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import {
+  doc, getDoc, collection, query, where, getDocs, orderBy, addDoc, updateDoc, serverTimestamp, documentId
+} from "firebase/firestore";
+import { db } from "../../firebase/firebaseConfig";
+import { FaStar } from "react-icons/fa";
+import {
+  Plus, Minus, ShoppingCart, ArrowRight, Star, CheckCircle, Loader,
+  Package, MessageCircle, Send, Reply, LogIn, Briefcase, ShieldCheck, Sparkles
+} from "lucide-react";
+import { subscribeToAverageRating } from "../../services/ratingService";
+import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
+import { useTranslation } from "react-i18next";
+import ServiceCard from "../../components/services/ServiceCard";
+import ProviderInfoCard from "../../components/services/ProviderInfoCard";
+import SEO from '../../components/common/SEO';  
+import AutoTranslatedText from "../../components/common/AutoTranslatedText"; 
+import { translateText } from "../../utils/googleTranslate"; // ✅ تأكد من هذا الاستيراد للـ SEO
+
+// --- Helpers & Constants ---
+
+const TIME_INTERVALS = [
+  { label: "year", seconds: 31536000 },
+  { label: "month", seconds: 2592000 },
+  { label: "week", seconds: 604800 },
+  { label: "day", seconds: 86400 },
+  { label: "hour", seconds: 3600 },
+  { label: "minute", seconds: 60 }
+];
+
+const formatTimeAgo = (timestamp, t) => {
+  if (!timestamp) return "";
+  let date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+  if (!date || isNaN(date)) return "";
+
+  const seconds = Math.floor((new Date() - date) / 1000);
+  for (const interval of TIME_INTERVALS) {
+    const count = Math.floor(seconds / interval.seconds);
+    if (count >= 1) return t('time_ago', { count, interval: t(`time.${interval.label}`) });
+  }
+  return t('time.just_now');
+};
+
+const StarsReadOnly = ({ rating, size = 16 }) => (
+  <div className="flex gap-0.5" dir="ltr">
+    {[...Array(5)].map((_, index) => (
+      <Star
+        key={index}
+        fill={index + 1 <= rating ? "#ffc107" : "none"}
+        stroke={index + 1 <= rating ? "#ffc107" : "#d1d5db"}
+        size={size}
+      />
+    ))}
+  </div>
+);
+
+// --- Helper for Localization ---
+const getLocalizedText = (field, lang) => {
+  if (!field) return "";
+  if (typeof field === 'string') return field;
+  return field[lang] || field['en'] || field['ar'] || "";
+};
+
+// --- Main Component ---
+
+function ServiceDetailPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language;
+
+  const { currentUser, userRole, userData } = useAuth();
+  const { addToCart, cartItems, updateCartItemQuantity } = useCart();
+
+  // State Management
+  const [service, setService] = useState(null);
+  const [isPackage, setIsPackage] = useState(false);
+  const [similarServices, setSimilarServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // ✅ تعريف المتغيرات المفقودة (هذا هو سبب الخطأ لديك)
+  const [displayName, setDisplayName] = useState("");
+  const [displayDesc, setDisplayDesc] = useState("");
+
+  // Ratings
+  const [averageRating, setAverageRating] = useState({ average: 0, count: 0 });
+  const [individualRatings, setIndividualRatings] = useState([]);
+
+  // User Actions
+  const [hasPurchased, setHasPurchased] = useState(false);
+  const [hasRatedBefore, setHasRatedBefore] = useState(false);
+
+  // Forms
+  const [newCommentText, setNewCommentText] = useState("");
+  const [newRatingValue, setNewRatingValue] = useState(0);
+  const [replyText, setReplyText] = useState("");
+  const [activeReplyId, setActiveReplyId] = useState(null);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+
+  // --- Effects ---
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      setLoading(true);
+      try {
+        // 1. Check User History
+        if (currentUser) {
+          const bookingsQuery = query(collection(db, "bookings"), where("userId", "==", currentUser.uid));
+          const ratingsQuery = query(
+            collection(db, "ratings"),
+            where("serviceId", "==", id),
+            where("userId", "==", currentUser.uid),
+            where("rating", ">", 0)
+          );
+
+          const [bookingsSnap, userRatingSnap] = await Promise.all([
+            getDocs(bookingsQuery),
+            getDocs(ratingsQuery)
+          ]);
+
+          const bought = bookingsSnap.docs.some(doc =>
+            doc.data().status === 'completed' && doc.data().services?.some(item => item.serviceId === id)
+          );
+          setHasPurchased(bought);
+          setHasRatedBefore(!userRatingSnap.empty);
+        }
+
+        // 2. Manage History
+        const history = JSON.parse(localStorage.getItem("recentlyViewed")) || [];
+        const newHistory = [id, ...history.filter(itemId => itemId !== id)].slice(0, 5);
+        localStorage.setItem("recentlyViewed", JSON.stringify(newHistory));
+
+        // 3. Fetch Service/Package
+        let docSnap = await getDoc(doc(db, "services", id));
+        let isPkg = false;
+
+        if (!docSnap.exists()) {
+          docSnap = await getDoc(doc(db, "packages", id));
+          isPkg = true;
+        }
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setIsPackage(isPkg);
+
+          setService({
+            id: docSnap.id,
+            ...data,
+            price: data.price || data.totalBasePrice,
+            features: data.features || data.items || [],
+          });
+
+          // 4. Fetch Reviews
+          const ratingsSnap = await getDocs(query(collection(db, "ratings"), where("serviceId", "==", id), orderBy("createdAt", "desc")));
+          setIndividualRatings(ratingsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+          // 5. Fetch Similar Services
+          const historyToFetch = newHistory.filter(itemId => itemId !== id).slice(0, 3);
+          if (historyToFetch.length > 0) {
+            const similarSnap = await getDocs(query(collection(db, "services"), where(documentId(), "in", historyToFetch)));
+
+            const similarData = await Promise.all(similarSnap.docs.map(async (doc) => {
+              const rSnap = await getDocs(query(collection(db, "ratings"), where("serviceId", "==", doc.id)));
+              let total = 0; rSnap.forEach(r => total += r.data().rating);
+              return {
+                id: doc.id, ...doc.data(),
+                rating: rSnap.size > 0 ? (total / rSnap.size).toFixed(1) : 0,
+                ratingCount: rSnap.size
+              };
+            }));
+            setSimilarServices(similarData);
+          }
+
+        } else {
+          setError(t('service_detail.not_found'));
+        }
+      } catch (err) {
+        console.error("Fetch Error:", err);
+        setError(t('service_detail.fetch_error'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllData();
+
+    // 6. Real-time Rating Subscription
+    const unsubscribeRating = subscribeToAverageRating(id, setAverageRating);
+    return () => unsubscribeRating();
+  }, [id, currentUser, t]);
+
+
+  // --- ✅ Translation Logic Effect (لضمان عمل SEO والترجمة) ---
+  useEffect(() => {
+    const resolveTranslation = async () => {
+      if (!service) return;
+
+      const nameRaw = isPackage ? service.packageName : service.name;
+      const descRaw = service.description;
+
+      // Helper function to handle async translation
+      const getTranslatedOrOriginal = async (textObject) => {
+        if (!textObject) return "";
+        
+        // 1. If it's an object {ar, en}, use static localization
+        if (typeof textObject === 'object') {
+          return getLocalizedText(textObject, currentLang);
+        }
+
+        // 2. If it's a string and we are in English mode -> Try Translate
+        if (currentLang === 'en' && typeof textObject === 'string') {
+           // Check if text has Arabic chars to avoid redundant API calls
+           if (/[\u0600-\u06FF]/.test(textObject)) {
+             try {
+               const translated = await translateText(textObject, 'en');
+               return translated;
+             } catch (err) {
+               return textObject;
+             }
+           }
+        }
+        
+        // 3. Default: Return original string
+        return textObject;
+      };
+
+      const nameResolved = await getTranslatedOrOriginal(nameRaw);
+      const descResolved = await getTranslatedOrOriginal(descRaw);
+
+      setDisplayName(nameResolved);
+      setDisplayDesc(descResolved);
+    };
+
+    resolveTranslation();
+  }, [service, currentLang, isPackage]);
+
+
+  // --- Handlers ---
+
+  const handlePostComment = async () => {
+    if (!newCommentText.trim()) return;
+    setSubmittingComment(true);
+    try {
+      const ratingToSend = (hasPurchased && !hasRatedBefore) ? newRatingValue : 0;
+      
+      const newReview = {
+        serviceId: id,
+        // حفظ الاسم كما هو (سيتم ترجمته عند العرض)
+        serviceName: isPackage ? (service.packageName?.ar || service.packageName) : (service.name?.ar || service.name),
+        userId: currentUser.uid,
+        userName: userData?.name || currentUser.email.split('@')[0],
+        rating: ratingToSend,
+        comment: newCommentText,
+        createdAt: serverTimestamp(),
+        providerReply: null
+      };
+
+      const docRef = await addDoc(collection(db, "ratings"), newReview);
+
+      setIndividualRatings(prev => [{ id: docRef.id, ...newReview, createdAt: { toDate: () => new Date() } }, ...prev]);
+      if (ratingToSend > 0) setHasRatedBefore(true);
+
+      setNewCommentText("");
+      setNewRatingValue(0);
+    } catch (err) {
+      console.error("Comment Error:", err);
+      alert(t('service_detail.error_sending'));
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleSubmitReply = async (ratingId) => {
+    if (!replyText.trim()) return;
+    try {
+      const replyData = {
+        reply: replyText,
+        repliedAt: new Date(),
+        providerName: userRole === 'admin' ? "Kashta" : (userData?.name || t('service_detail.provider_name'))
+      };
+
+      await updateDoc(doc(db, "ratings", ratingId), { providerReply: replyData });
+
+      setIndividualRatings(prev => prev.map(r => r.id === ratingId ? { ...r, providerReply: replyData } : r));
+      setReplyText("");
+      setActiveReplyId(null);
+    } catch (err) {
+      console.error("Reply Error:", err);
+    }
+  };
+
+  const cartItem = cartItems.find((item) => item.serviceId === id);
+  const isItemInCart = !!cartItem;
+
+  const handleInitialAddToCart = () => {
+    setBookingError("");
+    if (!currentUser) {
+      setBookingError(t('service_detail.login_required'));
+      setTimeout(() => navigate("/login"), 1500);
+      return;
+    }
+
+    setBookingLoading(true);
+    // Pass the Name Object (not the string) to Cart for flexibility
+    const nameObject = isPackage ? service.packageName : service.name;
+
+    addToCart({
+      serviceId: service.id,
+      serviceName: nameObject, 
+      servicePrice: Number(service.price),
+      imageUrl: service.imageUrl,
+      quantity: 1,
+      type: isPackage ? 'package' : 'service',
+      providerId: service.providerId
+    });
+    setBookingLoading(false);
+  };
+
+  const handleUpdateQuantity = (newQty) => {
+    if (cartItem) updateCartItemQuantity(cartItem.cartId, newQty);
+  };
+
+  const canReply = userRole === "admin" || (userRole === "provider" && currentUser && service?.providerId === currentUser.uid);
+
+  // --- Render ---
+
+  if (loading) return <div className="min-h-screen flex justify-center items-center bg-main-bg"><Loader className="animate-spin text-main-accent" size={40} /></div>;
+  if (error || !service) return <div className="min-h-screen flex flex-col justify-center items-center bg-main-bg text-main-text"><p className="text-xl font-bold mb-4">{error || t('service_detail.not_found')}</p><button onClick={() => navigate("/services")} className="text-main-accent underline">{t('service_detail.back_to_services')}</button></div>;
+
+  return (
+    <>
+      <SEO 
+        // ✅ الآن displayName معرف ولن يحدث خطأ، وسيعرض الاسم المترجم
+        title={displayName || (isPackage ? service.packageName : service.name)} 
+        description={displayDesc ? displayDesc.substring(0, 150) + "..." : ""}
+      />
+
+      <div className="min-h-screen bg-main-bg pt-28 pb-20 px-4 md:px-8 relative">
+        <div className="max-w-7xl mx-auto">
+
+          <button onClick={() => navigate(-1)} className="flex items-center text-second-text mb-8 hover:opacity-80 transition font-bold">
+            <ArrowRight className="ml-2 rtl:rotate-180" size={20} />
+            {t('service_detail.back_to_list')}
+          </button>
+
+          <section className="flex justify-center w-full">
+            <div className="w-full max-w-6xl bg-second-bg rounded-3xl shadow-xl overflow-hidden border border-main-bg">
+
+              {/* 1. Hero Image */}
+              <div className="relative h-[400px] md:h-[500px] w-full group">
+                <img
+                  src={service.imageUrl || "https://placehold.co/800x600"}
+                  alt={displayName}
+                  className="w-full h-full object-cover transition-transform duration-700 "
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+                <div className="absolute bottom-6 right-6 md:bottom-10 md:right-10 text-white z-10">
+                  {isPackage && (
+                    <span className="inline-flex items-center gap-1.5 bg-main-accent text-main-text text-xs md:text-sm px-4 py-1.5 rounded-full font-black mb-3 shadow-lg">
+                      <Package size={14} /> {t('service_detail.saving_package')}
+                    </span>
+                  )}
+                  {/* ✅ عرض الاسم المترجم */}
+                  <h1 className="text-3xl md:text-5xl font-black mb-2 drop-shadow-md">
+                    <AutoTranslatedText text={isPackage ? service.packageName : service.name} />
+                  </h1>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-3 py-1 rounded-lg">
+                      <Star className="text-main-accent fill-main-accent" size={16} />
+                      <span className="font-bold text-lg pt-0.5">{averageRating.average}</span>
+                      <span className="text-white/70 text-sm">({averageRating.count} {t('service_detail.ratings')})</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 md:p-12">
+
+                {/* 2. Details */}
+                <div className="mb-12">
+                  <div className="prose prose-lg prose-invert max-w-none">
+                    <h3 className="text-main-text font-bold text-xl mb-3 flex items-center gap-2">
+                      <Sparkles size={20} className="text-main-accent" />
+                      {t('service_detail.description')}
+                    </h3>
+                    {/* ✅ عرض الوصف المترجم */}
+                    <p className="text-main-text/80 leading-loose text-base md:text-lg">
+                      <AutoTranslatedText text={service.description || t('service_detail.no_desc_avail')} />
+                    </p>
+                  </div>
+
+                  {service.features?.length > 0 && (
+                    <div className="mt-8 bg-main-bg/5 rounded-2xl p-6">
+                      <p className="text-main-text font-bold mb-4 text-lg">{t('service_detail.features')}:</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {service.features.map((feature, idx) => {
+                          const featureData = (typeof feature === 'object' && feature !== null) 
+                            ? (feature.itemName || feature) : feature;
+                          return (
+                            <div key={idx} className="flex items-center gap-3 text-main-text/90 bg-second-bg/50 p-3 rounded-xl border border-main-bg">
+                              <CheckCircle size={18} className="text-main-accent shrink-0" />
+                              <span className="font-medium text-sm md:text-base">
+                                <AutoTranslatedText text={featureData} />
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. Pricing Box */}
+                  <div className="mt-10 p-1 rounded-2xl bg-gradient-to-br from-main-text/5 to-main-accent/10">
+                    <div className="bg-second-bg rounded-xl p-6 md:p-8 border border-main-bg">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+
+                        <div className="text-center md:text-right">
+                          <p className="text-main-text/60 text-sm font-bold mb-1">{t('service_detail.daily_rent')}</p>
+                          
+                          <div className="flex items-end justify-center md:justify-start gap-1">
+                            <span className="text-main-text font-black text-4xl">{service.price}</span>
+                            <div className="flex flex-col mb-1">
+                              <span className="text-main-accent font-bold text-lg leading-none">{t('services.currency')}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ✅ SECURITY CHECK: Only show Add to Cart for Customers */}
+                        {userRole !== 'admin' && userRole !== 'provider' && (
+                          <div className="w-full md:w-auto flex-1 max-w-md">
+                            {bookingError && (
+                              <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded-xl text-center font-bold mb-4 animate-pulse">
+                                {bookingError}
+                              </div>
+                            )}
+
+                            {isItemInCart ? (
+                              <div className="flex items-center gap-3 bg-main-bg/10 p-2 rounded-2xl border border-main-bg">
+                                <button onClick={() => handleUpdateQuantity(cartItem.quantity - 1)} className="bg-main-text text-second-text w-12 h-12 rounded-xl flex items-center justify-center hover:bg-main-text/90 transition shadow-md">
+                                  <Minus size={20} />
+                                </button>
+                                <span className="font-black text-2xl flex-1 text-center text-main-text">{cartItem.quantity}</span>
+                                <button onClick={() => handleUpdateQuantity(cartItem.quantity + 1)} className="bg-main-text text-second-text w-12 h-12 rounded-xl flex items-center justify-center hover:bg-main-text/90 transition shadow-md">
+                                  <Plus size={20} />
+                                </button>
+                                <Link to="/cart" className="bg-main-accent text-main-text px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:brightness-110 transition shadow-lg flex-1">
+                                  {t('service_detail.checkout')} <ArrowRight size={18} className="rtl:rotate-180" />
+                                </Link>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={handleInitialAddToCart}
+                                disabled={bookingLoading}
+                                className="group relative w-full bg-main-text text-second-text py-4 px-6 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl hover:shadow-main-text/20 transition-all duration-300 transform hover:-translate-y-1 active:scale-95 overflow-hidden flex items-center justify-center gap-3"
+                              >
+                                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
+                                {bookingLoading ? (
+                                  <><Loader className="animate-spin" size={24} /> {t('service_detail.adding')}</>
+                                ) : (
+                                  <>
+                                    <ShoppingCart size={24} className="group-hover:rotate-12 transition-transform duration-300" />
+                                    <span>{t('services.add_to_cart')}</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Info Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                  <div className="h-full">
+                    {service.providerId && <ProviderInfoCard providerId={service.providerId} />}
+                  </div>
+                  <div className="bg-main-accent/5 border border-main-bg rounded-2xl p-6 flex flex-col justify-center h-full">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-main-accent text-main-text p-3 rounded-full shadow-md shrink-0">
+                        <ShieldCheck size={24} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-main-text text-lg mb-2">{t('service_detail.guarantee_title')}</h4>
+                        <p className="text-main-text/70 text-sm leading-relaxed">
+                          {t('service_detail.guarantee_desc')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Similar Services */}
+                {similarServices.length > 0 && (
+                  <div className="mb-16 pt-10 border-t border-main-bg">
+                    <h2 className="text-main-text font-extrabold text-2xl mb-6">{t('service_detail.similar_services')}</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {similarServices.map((simService) => (
+                        <ServiceCard key={simService.id} service={simService} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. Reviews */}
+                <div className="pt-10 border-t border-main-bg">
+                  <h3 className="text-2xl font-bold text-main-text mb-8 flex items-center gap-2">
+                    <MessageCircle className="text-main-accent" />
+                    {t('service_detail.client_reviews')} ({individualRatings.length})
+                  </h3>
+
+                  {currentUser ? (
+                    <div className="bg-second-bg rounded-2xl p-6 mb-10">
+                      {hasPurchased && !hasRatedBefore && (
+                        <div className="mb-4 pb-4 border-b border-main-bg">
+                          <label className="block text-main-text text-sm font-bold mb-3">{t('service_detail.rate_experience')}</label>
+                          <div className="flex gap-2" dir="ltr">
+                            {[...Array(5)].map((_, index) => (
+                              <FaStar
+                                key={index}
+                                size={28}
+                                className={`cursor-pointer transition-all hover:scale-110 ${index + 1 <= newRatingValue ? "text-yellow-400 drop-shadow-sm" : "text-gray-300"}`}
+                                onClick={() => setNewRatingValue(index + 1)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="relative">
+                        <textarea
+                          className="w-full bg-main-bg/50 text-main-text rounded-xl p-4 min-h-[120px] focus:ring-2 focus:ring-main-accent/50 outline-none resize-none border border-transparent transition placeholder:text-main-text/30"
+                          placeholder={t('service_detail.write_review')}
+                          value={newCommentText}
+                          onChange={(e) => setNewCommentText(e.target.value)}
+                        />
+                        <button
+                          onClick={handlePostComment}
+                          disabled={submittingComment}
+                          className="absolute bottom-3 left-3 bg-main-text text-second-text px-4 py-2 rounded-lg font-bold text-xs hover:bg-main-accent hover:text-main-text transition disabled:opacity-50 flex items-center gap-2 shadow-md"
+                        >
+                          {submittingComment ? <Loader size={14} className="animate-spin" /> : <Send size={14} className="rtl:rotate-180" />}
+                          {t('service_detail.post_review')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-main-bg/5 rounded-2xl p-8 text-center mb-10 border border-dashed border-main-bg">
+                      <p className="text-main-text/70 text-base mb-4 font-medium">{t('service_detail.login_to_review')}</p>
+                      <Link to="/login" className="inline-flex items-center gap-2 bg-main-text text-second-text px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-main-accent hover:text-main-text transition shadow-md hover:-translate-y-0.5">
+                        <LogIn size={18} />
+                        {t('navbar.login')}
+                      </Link>
+                    </div>
+                  )}
+
+                  <div className="space-y-6">
+                    {individualRatings.length > 0 ? (
+                      individualRatings.map((rating) => (
+                        <div key={rating.id} className="bg-main-bg/5 p-6 rounded-2xl border border-main-bg hover:border-main-bg transition">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gradient-to-br from-main-text to-gray-700 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
+                                {rating.userName ? rating.userName.charAt(0).toUpperCase() : "U"}
+                              </div>
+                              <div>
+                                <h4 className="text-main-text font-bold text-base">{rating.userName || t('common.client')}</h4>
+                                <div className="flex items-center gap-3 mt-1">
+                                  {rating.rating > 0 && <StarsReadOnly rating={rating.rating} size={14} />}
+                                  <span className="text-xs text-main-text/40 font-medium">• {formatTimeAgo(rating.createdAt, t)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="ml-16 rtl:mr-16 rtl:ml-0">
+                            {/* ✅ ترجمة تعليق العميل */}
+                            <p className="text-main-text/80 text-base leading-relaxed">
+                              <AutoTranslatedText text={rating.comment} />
+                            </p>
+                          </div>
+
+                          {rating.providerReply && (
+                            <div className="mt-4 ml-12 md:ml-16 rtl:mr-12 rtl:ml-0 md:rtl:mr-16 flex items-start gap-3 animate-fade-in">
+                              <div className="w-0.5 bg-main-accent/30 rounded-full self-stretch my-1"></div>
+                              <div className="bg-second-bg p-4 rounded-xl w-full border border-main-bg shadow-sm">
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="text-main-accent font-extrabold text-sm flex items-center gap-1.5">
+                                    {rating.providerReply.providerName === "Kashta" ? (
+                                      <CheckCircle size={14} className="fill-main-accent text-second-bg" />
+                                    ) : (
+                                      <Briefcase size={14} className="text-main-accent" />
+                                    )}
+                                    {rating.providerReply.providerName}
+                                  </span>
+                                  <span className="text-xs text-main-text/30">
+                                    {rating.providerReply.repliedAt ? formatTimeAgo(rating.providerReply.repliedAt, t) : ""}
+                                  </span>
+                                </div>
+                                {/* ✅ ترجمة رد المزود */}
+                                <p className="text-main-text/70 text-sm leading-relaxed">
+                                  <AutoTranslatedText text={rating.providerReply.reply} />
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {!rating.providerReply && canReply && (
+                            <div className="mt-4 ml-16 rtl:mr-16 rtl:ml-0">
+                              {activeReplyId === rating.id ? (
+                                <div className="flex gap-2 items-center bg-white p-2 rounded-xl shadow-sm ring-1 ring-main-text/5">
+                                  <input
+                                    type="text"
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
+                                    className="bg-transparent text-main-text text-sm p-2 flex-1 outline-none"
+                                    placeholder={t('service_detail.write_reply')}
+                                    autoFocus
+                                  />
+                                  <button onClick={() => handleSubmitReply(rating.id)} className="bg-main-text text-second-text px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-main-accent hover:text-main-text transition">{t('service_detail.send')}</button>
+                                  <button onClick={() => setActiveReplyId(null)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition"><Minus size={14} /></button>
+                                </div>
+                              ) : (
+                                <button onClick={() => setActiveReplyId(rating.id)} className="text-xs text-main-text/40 hover:text-main-accent flex items-center gap-1 transition font-bold">
+                                  <Reply size={12} className="rtl:scale-x-[-1]" />
+                                  {t('service_detail.reply_to_client')}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-12 bg-main-bg/5 rounded-3xl border border-dashed border-main-bg">
+                        <MessageCircle size={48} className="text-main-text/10 mx-auto mb-4" />
+                        <p className="text-main-text/60 font-bold text-lg">{t('service_detail.no_comments')}</p>
+                        <p className="text-main-text/40 text-sm mt-1">{t('service_detail.be_first')}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default ServiceDetailPage;

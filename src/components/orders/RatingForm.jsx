@@ -9,17 +9,15 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next"; 
+
+// --- Components ---
+import Button from "../common/Button";
 
 // --- Configuration ---
 const GENERAL_RATING_ID = "GENERAL_SITE_RATING";
-const GENERAL_RATING_NAME = "تقييم عام للموقع";
 
 // --- Sub-Components ---
-
-/**
- * Interactive Star Rating Component
- * Allows user to select a rating from 1 to 5.
- */
 const StarRatingInput = ({ rating, setRating }) => {
   return (
     <div className="flex justify-center space-x-2 space-x-reverse mb-6">
@@ -51,6 +49,7 @@ const StarRatingInput = ({ rating, setRating }) => {
 
 function RatingForm({ booking }) {
   const { userData } = useAuth();
+  const { t } = useTranslation(); 
   
   // Form State
   const [rating, setRating] = useState(0);
@@ -68,11 +67,11 @@ function RatingForm({ booking }) {
 
     // 1. Validation
     if (rating === 0 || !comment.trim()) {
-      setError("الرجاء اختيار تقييم (نجوم) وكتابة تعليق.");
+      setError(t('rating.error_missing')); 
       return;
     }
     if (!userData) {
-      setError("خطأ: لم يتم العثور على بيانات المستخدم.");
+      setError(t('rating.error_user'));
       return;
     }
 
@@ -82,9 +81,9 @@ function RatingForm({ booking }) {
       // 2. Add Rating to Firestore
       await addDoc(collection(db, "ratings"), {
         userId: userData.uid,
-        userName: userData.name || "عميل",
+        userName: userData.name || t('common.client'),
         serviceId: GENERAL_RATING_ID,
-        serviceName: GENERAL_RATING_NAME,
+        serviceName: t('rating.general_site_rating'), 
         bookingId: booking.id,
         rating: rating,
         comment: comment,
@@ -98,10 +97,10 @@ function RatingForm({ booking }) {
         rated: true,
       });
 
-      setSuccess("شكراً! تم إرسال تقييمك للموقع بنجاح.");
+      setSuccess(t('rating.success_msg')); 
     } catch (err) {
       console.error("Error submitting rating:", err);
-      setError("حدث خطأ. الرجاء المحاولة مرة أخرى.");
+      setError(t('rating.error_generic'));
     } finally {
       setLoading(false);
     }
@@ -122,7 +121,7 @@ function RatingForm({ booking }) {
   return (
     <div className="border-t-2 border-dashed border-main-text/10 pt-8 mt-8">
       <h3 className="text-2xl font-bold text-center mb-6 text-main-text">
-        كيف كانت تجربتك مع كشتة؟
+        {t('rating.how_was_experience')} 
       </h3>
 
       {error && (
@@ -142,26 +141,26 @@ function RatingForm({ booking }) {
             className="block text-main-text text-sm font-bold mb-2"
             htmlFor="comment"
           >
-            اكتب رأيك في الموقع والخدمة بشكل عام
+            {t('rating.write_opinion')} 
           </label>
           <textarea
             className="w-full bg-white border border-main-text/10 rounded-xl py-3 px-4 text-main-text placeholder-main-text/30 focus:outline-none focus:border-main-accent focus:ring-2 focus:ring-main-accent/20 transition-all resize-none shadow-inner"
             id="comment"
             rows="4"
-            placeholder="تجربة ممتازة، الموقع سهل الاستخدام..."
+            placeholder={t('rating.placeholder')} 
             value={comment}
             onChange={(e) => setComment(e.target.value)}
           />
         </div>
 
         {/* Submit Button */}
-        <button
-          className="w-full bg-main-text text-second-text font-bold py-3.5 px-4 rounded-xl hover:bg-main-accent hover:text-main-text hover:-translate-y-0.5 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+        <Button
           type="submit"
-          disabled={loading}
+          isLoading={loading}
+          className="w-full shadow-md"
         >
-          {loading ? "جاري الإرسال..." : "إرسال التقييم"}
-        </button>
+          {loading ? t('common.sending') : t('rating.submit_btn')}
+        </Button>
       </form>
     </div>
   );

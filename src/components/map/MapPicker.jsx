@@ -1,130 +1,124 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  useMap,
-  useMapEvents,
-} from "react-leaflet";
-import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
-import "leaflet/dist/leaflet.css";
-import "leaflet-geosearch/dist/geosearch.css";
+import React, { useState, useCallback, useRef } from "react";
+import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from "@react-google-maps/api";
+import { Search, Loader, MapPin } from "lucide-react";
+import { isLocationAllowed } from "../../data/serviceZones"; // تأكد من المسار
 
-import { isLocationAllowed } from "../../data/serviceZones";
-
-// --- Configuration ---
-const JEDDAH_CENTER = [21.543333, 39.172778];
-const DEFAULT_ZOOM = 11;
-
-// Style to ensure map fills the parent container
-const MAP_STYLE = {
+// إعدادات الخريطة
+const containerStyle = {
   width: "100%",
-  height: "100%", 
-  borderRadius: "1rem", // Matches rounded-2xl
-  zIndex: 0
+  height: "100%",
+  borderRadius: "1rem",
 };
 
-// --- Sub-Components ---
-
-/**
- * Handles clicks on the map surface.
- */
-const MapEventsHandler = ({ onLocationSelect }) => {
-  useMapEvents({
-    click(e) {
-      onLocationSelect(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
+// مركز جدة
+const JEDDAH_CENTER = {
+  lat: 21.543333,
+  lng: 39.172778
 };
 
-/**
- * Adds the Search Control to the map and handles search results.
- */
-const SearchControl = ({ onLocationSelect }) => {
-  const map = useMap();
-
-  useEffect(() => {
-    const provider = new OpenStreetMapProvider();
-    
-    // Configure Search Control
-    const searchControl = new GeoSearchControl({
-      provider: provider,
-      style: "bar",
-      autoClose: true,
-      keepResult: true,
-      searchLabel: "ابحث عن حي أو مكان..", // Arabic placeholder
-    });
-
-    map.addControl(searchControl);
-
-    // Handle search result selection
-    const handleSearchResult = (e) => {
-      // Library returns { x, y, ... } where x=lng, y=lat
-      onLocationSelect(e.location.y, e.location.x);
-    };
-
-    map.on("geosearch/showlocation", handleSearchResult);
-
-    // Cleanup
-    return () => {
-      map.removeControl(searchControl);
-      map.off("geosearch/showlocation", handleSearchResult);
-    };
-  }, [map, onLocationSelect]);
-
-  return null;
-};
-
-// --- Main Component ---
+const libraries = ["places"];
 
 function MapPicker({ onLocationChange, mode = "booking" }) {
+  const { isLoaded } = useJsApiLoader({
+  id: "google-map-script",
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY, 
+  libraries: libraries,
+});
+
+  const [map, setMap] = useState(null);
   const [markerPosition, setMarkerPosition] = useState(JEDDAH_CENTER);
+  const [searchBox, setSearchBox] = useState(null);
 
-  /**
-   * Centralized logic to validate and update location.
-   * This removes code duplication between Click and Search events.
-   */
-  const handleLocationUpdate = useCallback((lat, lng) => {
-    const newPos = [lat, lng];
+  const onLoad = useCallback((map) => {
+    setMap(map);
+  }, []);
 
-    // Logic:
-    // 1. If mode is 'set' (e.g., Admin defining a zone), allow any location.
-    // 2. If mode is 'booking' (Customer), validate against service zones (Jeddah).
+  const onUnmount = useCallback(() => {
+    setMap(null);
+  }, []);
+
+  const handleLocationUpdate = (lat, lng) => {
+    const newPos = { lat, lng };
+
     if (mode === "set") {
       setMarkerPosition(newPos);
-      onLocationChange({ lat, lng });
+      if(onLocationChange) onLocationChange({ lat, lng });
     } else {
       if (isLocationAllowed(lat, lng)) {
         setMarkerPosition(newPos);
-        onLocationChange({ lat, lng });
+        if(onLocationChange) onLocationChange({ lat, lng });
+        
+        if(map) map.panTo(newPos);
       } else {
         alert("عذراً، خدماتنا متاحة حالياً داخل مدينة جدة فقط.");
       }
     }
-  }, [mode, onLocationChange]);
+  };
+
+  const handleMapClick = (e) => {
+    handleLocationUpdate(e.latLng.lat(), e.latLng.lng());
+  };
+
+
+  const onPlacesChanged = () => {
+    const places = searchBox.getPlaces();
+    if (places.length === 0) return;
+
+    const place = places[0];
+    const location = {
+      lat: place.geometry.location.lat(),
+      lng: place.geometry.location.lng()
+    };
+
+    handleLocationUpdate(location.lat, location.lng);
+  };
+
+  const onLoadSearchBox = (ref) => {
+    setSearchBox(ref);
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="flex justify-center items-center h-64 bg-gray-100 rounded-xl w-full">
+        <Loader className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
   return (
-    <MapContainer
-      center={JEDDAH_CENTER}
-      zoom={DEFAULT_ZOOM}
-      style={MAP_STYLE}
-      zoomControl={true}
-    >
-      {/* Map Tiles */}
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+    <div className="relative w-full h-full">
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 w-3/4 max-w-md">
+        <StandaloneSearchBox
+          onLoad={onLoadSearchBox}
+          onPlacesChanged={onPlacesChanged}
+        >
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="ابحث عن حي أو مكان.."
+              className="w-full px-4 py-3 pl-10 rounded-xl shadow-lg border-2 border-main-accent/50 focus:border-main-accent focus:outline-none text-main-text bg-white"
+            />
+            <Search className="absolute left-3 top-3.5 text-gray-400" size={20} />
+          </div>
+        </StandaloneSearchBox>
+      </div>
 
-      {/* Selected Location Marker */}
-      <Marker position={markerPosition} />
-
-      {/* Interactions */}
-      <MapEventsHandler onLocationSelect={handleLocationUpdate} />
-      <SearchControl onLocationSelect={handleLocationUpdate} />
-      
-    </MapContainer>
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={JEDDAH_CENTER}
+        zoom={11}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        onClick={handleMapClick}
+        options={{
+          streetViewControl: false,
+          mapTypeControl: true, 
+          fullscreenControl: false,
+        }}
+      >
+        <Marker position={markerPosition} />
+      </GoogleMap>
+    </div>
   );
 }
 

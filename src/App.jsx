@@ -1,79 +1,116 @@
-import React from "react";
+import React, { useEffect, Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
+import { Loader } from "lucide-react"; 
+import { Toaster } from 'react-hot-toast';
+import { HelmetProvider } from 'react-helmet-async';
 
-// --- Layout Components ---
-import Navbar from "./components/layout/Navbar";
-import Footer from "./components/layout/Footer";
+// --- Contexts (ضرورية جداً) ---
+import { AuthProvider } from "./context/AuthContext";
+import { CartProvider } from "./context/CartContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
-// --- Auth Guards ---
+// --- Utils ---
+import ScrollToTop from "./components/common/ScrollToTop";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+
+// --- Layouts & Guards ---
+import MainLayout from "./components/layout/MainLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ProviderRoute from "./components/auth/ProviderRoute";
 
-// --- Pages: Public ---
-import HomePage from "./pages/HomePage";
-import ServicesPage from "./pages/ServicesPage";
-import ServiceDetailPage from "./pages/ServiceDetailPage";
-import AboutUsPage from "./pages/AboutUsPage";
-import CartPage from "./pages/CartPage";
+// --- Lazy Loading Pages 🚀 ---
 
-// --- Pages: Authentication ---
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ProviderRegisterPage from "./pages/provider/ProviderRegisterPage";
+// Pages: Public
+const HomePage = lazy(() => import("./pages/shared/HomePage"));
+const ServicesPage = lazy(() => import("./pages/shared/ServicesPage"));
+const ServiceDetailPage = lazy(() => import("./pages/shared/ServiceDetailPage"));
+const AboutUsPage = lazy(() => import("./pages/shared/AboutUsPage"));
+const CartPage = lazy(() => import("./pages/customer/CartPage"));
+const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 
-// --- Pages: User (Protected) ---
-import ProfilePage from "./pages/ProfilePage";
-import MyBookingsPage from "./pages/MyBookingsPage";
-import BookingDetailPage from "./pages/BookingDetailPage";
+// Pages: Authentication
+const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
+const ProviderRegisterPage = lazy(() => import("./pages/auth/ProviderRegisterPage"));
 
-// --- Pages: Provider & Admin ---
-import AddServicePage from "./pages/provider/AddServicePage";
-import ManageBookingsPage from "./pages/provider/ManageBookingsPage";
-import AdminDashboard from "./pages/admin/AdminDashboard";
+// Pages: User (Protected)
+const ProfilePage = lazy(() => import("./pages/customer/ProfilePage"));
+const MyBookingsPage = lazy(() => import("./pages/customer/MyBookingsPage"));
+const BookingDetailPage = lazy(() => import("./pages/customer/BookingDetailPage"));
+
+// Pages: Provider & Admin
+const AddServicePage = lazy(() => import("./pages/provider/AddServicePage"));
+const ManageBookingsPage = lazy(() => import("./pages/provider/ManageBookingsPage"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+
+// --- Loading Component ---
+const PageLoader = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen bg-main-bg">
+    <Loader size={48} className="animate-spin text-main-accent mb-4" />
+    <p className="text-main-text font-bold animate-pulse">جاري التحميل...</p>
+  </div>
+);
 
 function App() {
+  const { i18n } = useTranslation();
+
+  useEffect(() => {
+    document.documentElement.dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language]);
+
   return (
-    // Flex container to ensure the Footer stays at the bottom
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
+    <HelmetProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <CartProvider>
 
-      {/* Main Content Area: Grows to fill available space */}
-      <main className="flex-grow">
-        <Routes>
+            <ScrollToTop />
+            <Toaster position="top-center" reverseOrder={false} />
 
-          {/* 1. Public Routes (Accessible by everyone) */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/services" element={<ServicesPage />} />
-          <Route path="/service/:id" element={<ServiceDetailPage />} />
-          <Route path="/about-us" element={<AboutUsPage />} />
-          <Route path="/cart" element={<CartPage />} />
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route element={<MainLayout />}>
+                    
+                    {/* Public Routes */}
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/services" element={<ServicesPage />} />
+                    <Route path="/service/:id" element={<ServiceDetailPage />} />
+                    <Route path="/about-us" element={<AboutUsPage />} />
+                    <Route path="/cart" element={<CartPage />} />
 
-          {/* 2. Authentication Routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/provider-apply" element={<ProviderRegisterPage />} />
+                    {/* Auth Routes */}
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/provider-apply" element={<ProviderRegisterPage />} />
 
-          {/* 3. Protected Routes (Logged-in Users) */}
-          {/* Wraps child routes to check if a user is authenticated */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/my-bookings" element={<MyBookingsPage />} />
-            <Route path="/booking/:id" element={<BookingDetailPage />} />
-          </Route>
+                    {/* Customer Protected Routes */}
+                    <Route element={<ProtectedRoute />}>
+                      <Route path="/profile" element={<ProfilePage />} />
+                      <Route path="/my-bookings" element={<MyBookingsPage />} />
+                      <Route path="/booking/:id" element={<BookingDetailPage />} />
+                      <Route path="/verify-email" element={<VerifyEmail />} />
+                    </Route>
 
-          {/* 4. Provider & Admin Routes */}
-          {/* Restricts access to Providers and Admins only */}
-          <Route element={<ProviderRoute />}>
-            <Route path="/add-service" element={<AddServicePage />} />
-            <Route path="/manage-bookings" element={<ManageBookingsPage />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-          </Route>
+                    {/* Provider & Admin Routes */}
+                    <Route element={<ProviderRoute />}>
+                      <Route path="/add-service" element={<AddServicePage />} />
+                      <Route path="/manage-bookings" element={<ManageBookingsPage />} />
+                      <Route path="/admin" element={<AdminDashboard />} />
+                    </Route>
 
-        </Routes>
-      </main>
+                  </Route>
+                </Routes>
 
-      <Footer />
-    </div>
+              </Suspense>
+            </ErrorBoundary>
+
+          </CartProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </HelmetProvider>
   );
 }
 

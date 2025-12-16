@@ -1,9 +1,7 @@
 /* =========================================
    1. External Libraries Imports
    ========================================= */
-/* Leaflet Map Styles */
 @import "leaflet/dist/leaflet.css";
-/* Leaflet GeoSearch Control Styles */
 @import "leaflet-geosearch/dist/geosearch.css";
 
 /* =========================================
@@ -14,29 +12,43 @@
 @tailwind utilities;
 
 /* =========================================
-   3. Global Base Styles
+   3. Theme Variables Setup
+   ========================================= */
+@layer base {
+  :root {
+    --main-bg: #4A352F;    
+    --second-bg: #d8ceb8; 
+    --main-accent: #e48a4e;   
+    --main-text: #4A352F;    
+    --second-text: #d8ceb8;
+    
+  }
+
+  .dark {
+    --main-bg: #1c1917;      
+    --second-bg: #4a352f;    
+    
+    --main-text: #000000;    
+    --second-text: #d8ceb8;  
+    
+    --main-accent: #8b644a;  
+  }
+}
+
+/* =========================================
+   4. Global Styles
    ========================================= */
 body {
-  /* Kashta Theme: Primary Dark Brown Background */
-  background-color: #4a352f;
-  
-  /* Kashta Theme: Secondary Beige Text */
-  color: #f5f1e8;
-  
-  /* Global Font Family */
+  @apply bg-main-bg text-main-text transition-colors duration-300;
   font-family: "Kumbh Sans", sans-serif;
 }
 
 /* =========================================
-   4. Component Overrides
+   5. Leaflet Map Fixes
    ========================================= */
-
-/* Fix Leaflet map container for Arabic layout */
 .leaflet-container {
-  text-align: right;
-  direction: rtl; /* Ensures controls align correctly for Arabic users */
-  background-color: #e0e0e0; /* Fallback background color while map loads */
+  direction: rtl;
   width: 100%;
   height: 100%;
-  z-index: 1; /* Ensure map stays below fixed headers/modals */
+  z-index: 1;
 }

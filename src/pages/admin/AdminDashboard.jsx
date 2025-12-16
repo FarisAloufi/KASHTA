@@ -7,14 +7,12 @@ import {
   Users, ShoppingBag, CheckCircle, XCircle, TrendingUp,
   ShieldCheck, Briefcase, FileText, Calendar, Loader
 } from "lucide-react";
+import SEO from '../../components/common/SEO';
 
 // --- Sub-Components ---
 
-/**
- * Reusable Statistic Card Component
- */
 const StatCard = ({ title, value, icon: Icon, color }) => (
-  <div className="bg-second-bg p-6 rounded-2xl shadow-lg border border-main-text/10 flex items-center gap-4 transition-transform hover:-translate-y-1">
+  <div className="bg-second-bg p-6 rounded-2xl shadow-lg border border-main-bg flex items-center gap-4 transition-transform hover:-translate-y-1">
     <div className={`p-4 rounded-full ${color} text-white shadow-md`}>
       <Icon size={24} />
     </div>
@@ -28,7 +26,6 @@ const StatCard = ({ title, value, icon: Icon, color }) => (
 // --- Main Component ---
 
 function AdminDashboard() {
-  // State Management
   const [stats, setStats] = useState({
     usersCount: 0,
     providersCount: 0,
@@ -40,11 +37,9 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
 
-  // Initial Data Fetching
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Prepare parallel queries
         const usersPromise = getDocs(collection(db, "users"));
         const bookingsPromise = getDocs(collection(db, "bookings"));
         const appsQuery = query(
@@ -54,14 +49,12 @@ function AdminDashboard() {
         );
         const appsPromise = getDocs(appsQuery);
 
-        // 2. Execute all queries
         const [usersSnap, bookingsSnap, appsSnap] = await Promise.all([
           usersPromise,
           bookingsPromise,
           appsPromise
         ]);
 
-        // 3. Process Statistics
         let users = 0;
         let providers = 0;
         let revenue = 0;
@@ -82,7 +75,6 @@ function AdminDashboard() {
           totalRevenue: revenue
         });
 
-        // 4. Process Applications
         const appsData = appsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setApplications(appsData);
 
@@ -96,10 +88,10 @@ function AdminDashboard() {
     fetchData();
   }, []);
 
-  // Handle Application Approval
+  // ✅ Handle Approve (Updated)
   const handleApprove = async (app) => {
     if (!window.confirm(`هل أنت متأكد من قبول "${app.fullName}"؟`)) return;
-    
+
     setProcessingId(app.id);
 
     try {
@@ -109,14 +101,14 @@ function AdminDashboard() {
         reviewedAt: new Date()
       });
 
-      // 2. Promote user to 'provider' role
+      // 2. Promote user AND Update Status
       if (app.uid) {
         await updateDoc(doc(db, "users", app.uid), {
-          role: "provider"
+          role: "provider",
+          status: "approved"
         });
       }
 
-      // 3. Update UI state optimistically
       setApplications(prev => prev.filter(item => item.id !== app.id));
       alert("تم قبول مقدم الخدمة بنجاح! 🎉");
 
@@ -128,21 +120,27 @@ function AdminDashboard() {
     }
   };
 
-  // Handle Application Rejection
-  const handleReject = async (appId) => {
+  // ✅ Handle Reject (Updated)
+  const handleReject = async (app) => {
     if (!window.confirm("هل أنت متأكد من رفض هذا الطلب؟")) return;
-    
-    setProcessingId(appId);
+
+    setProcessingId(app.id);
 
     try {
-      // 1. Update application status to rejected
-      await updateDoc(doc(db, "providerApplications", appId), {
+      // 1. Update application status
+      await updateDoc(doc(db, "providerApplications", app.id), {
         status: "rejected",
         reviewedAt: new Date()
       });
 
-      // 2. Update UI state optimistically
-      setApplications(prev => prev.filter(item => item.id !== appId));
+      // 2. Update User status too
+      if (app.uid) {
+        await updateDoc(doc(db, "users", app.uid), {
+          status: "rejected"
+        });
+      }
+
+      setApplications(prev => prev.filter(item => item.id !== app.id));
 
     } catch (error) {
       console.error("Error rejecting application:", error);
@@ -151,7 +149,6 @@ function AdminDashboard() {
     }
   };
 
-  // Loading View
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-main-bg">
@@ -160,132 +157,112 @@ function AdminDashboard() {
     );
   }
 
-  // Dashboard View
   return (
-    <div className="min-h-screen bg-main-bg py-10 px-4">
-      <div className="container mx-auto max-w-7xl">
+    <>
+      <SEO
+        title="لوحة تحكم الإدارة"
+        description="إدارة المستخدمين والطلبات ومقدمي الخدمات في منصة كشتة."
+      />
 
-        {/* Dashboard Header */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-extrabold text-second-text mb-2 flex items-center gap-3">
-            <ShieldCheck size={40} /> لوحة تحكم الإدارة
-          </h1>
-          <p className="text-second-text/70">نظرة عامة على أداء المنصة والطلبات الجديدة</p>
-        </div>
+      <div className="min-h-screen bg-main-bg py-10 px-4">
+        <div className="container mx-auto max-w-7xl">
 
-        {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <StatCard
-            title="إجمالي المبيعات"
-            value={`${stats.totalRevenue.toLocaleString()} ريال`}
-            icon={TrendingUp}
-            color="bg-green-600"
-          />
-          <StatCard
-            title="إجمالي الطلبات"
-            value={stats.bookingsCount}
-            icon={ShoppingBag}
-            color="bg-blue-600"
-          />
-          <StatCard
-            title="العملاء المسجلين"
-            value={stats.usersCount}
-            icon={Users}
-            color="bg-orange-500"
-          />
-          <StatCard
-            title="مقدمي الخدمات"
-            value={stats.providersCount}
-            icon={Briefcase}
-            color="bg-purple-600"
-          />
-        </div>
-
-        {/* Applications Section */}
-        <div className="bg-second-bg rounded-3xl p-8 shadow-xl border border-main-text/10">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-extrabold text-main-text flex items-center gap-2">
-              <FileText /> طلبات الانضمام الجديدة
-            </h2>
-            <span className="bg-main-text text-second-text px-3 py-1 rounded-full text-sm font-bold">
-              {applications.length} معلق
-            </span>
+          <div className="mb-10">
+            <h1 className="text-4xl font-extrabold text-second-text mb-2 flex items-center gap-3">
+              <ShieldCheck size={40} /> لوحة تحكم الإدارة
+            </h1>
+            <p className="text-second-text/70">نظرة عامة على أداء المنصة والطلبات الجديدة</p>
           </div>
 
-          {applications.length === 0 ? (
-            <div className="text-center py-12 bg-main-bg/5 rounded-2xl border-2 border-dashed border-main-text/20">
-              <p className="text-main-text/60 font-bold text-lg">لا توجد طلبات جديدة حالياً ✅</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            <StatCard title="إجمالي المبيعات" value={`${stats.totalRevenue.toLocaleString()} ريال`} icon={TrendingUp} color="bg-green-600" />
+            <StatCard title="إجمالي الطلبات" value={stats.bookingsCount} icon={ShoppingBag} color="bg-blue-600" />
+            <StatCard title="العملاء المسجلين" value={stats.usersCount} icon={Users} color="bg-orange-500" />
+            <StatCard title="مقدمي الخدمات" value={stats.providersCount} icon={Briefcase} color="bg-purple-600" />
+          </div>
+
+          <div className="bg-second-bg rounded-3xl p-8 shadow-xl border border-main-bg">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-extrabold text-main-text flex items-center gap-2">
+                <FileText /> طلبات الانضمام الجديدة
+              </h2>
+              <span className="bg-main-text text-second-text px-3 py-1 rounded-full text-sm font-bold">
+                {applications.length} معلق
+              </span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {applications.map((app) => (
-                <div key={app.id} className="bg-white/50 p-6 rounded-2xl border border-main-text/10 relative overflow-hidden transition-all hover:shadow-md">
-                  <div className="absolute top-0 bottom-0 right-0 w-2 bg-main-accent"></div>
 
-                  <div className="mr-4">
-                    {/* Applicant Info Header */}
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-xl font-bold text-main-text">{app.fullName}</h3>
-                        <p className="text-sm text-main-text/60 font-mono">{app.email}</p>
-                      </div>
-                      <span className="bg-main-bg/10 text-main-text px-3 py-1 rounded-lg text-xs font-bold">
-                        {app.nationality}
-                      </span>
-                    </div>
+            {applications.length === 0 ? (
+              <div className="text-center py-12 bg-main-bg/5 rounded-2xl border-2 border-dashed border-main-bg">
+                <p className="text-main-text/60 font-bold text-lg">لا توجد طلبات جديدة حالياً ✅</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {applications.map((app) => (
+                  <div key={app.id} className="bg-main-bg/5 p-6 rounded-2xl border border-main-bg relative overflow-hidden transition-all hover:shadow-md">
+                    <div className="absolute top-0 bottom-0 right-0 w-2 bg-main-accent"></div>
 
-                    {/* Application Details Grid */}
-                    <div className="grid grid-cols-2 gap-4 text-sm mb-6 bg-main-bg/5 p-4 rounded-xl">
-                      <div>
-                        <p className="text-main-text/50 font-bold mb-1">رقم الهوية</p>
-                        <p className="font-mono font-bold text-main-text">{app.idNumber}</p>
+                    <div className="mr-4">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-xl font-bold text-main-text">{app.fullName}</h3>
+                          <p className="text-sm text-main-text/60 font-mono">{app.email}</p>
+                        </div>
+                        <span className="bg-main-bg/10 text-main-text px-3 py-1 rounded-lg text-xs font-bold">
+                          {app.nationalityLabel || app.nationality}
+                        </span>
                       </div>
-                      <div>
-                        <p className="text-main-text/50 font-bold mb-1">رقم الجوال</p>
-                        <p className="font-mono font-bold text-main-text" dir="ltr">{app.phone}</p>
-                      </div>
-                      <div>
-                        <p className="text-main-text/50 font-bold mb-1">تاريخ الميلاد</p>
-                        <div className="flex items-center gap-1 font-bold text-main-text">
-                          <Calendar size={14} /> {app.birthDate}
+
+                      <div className="grid grid-cols-2 gap-4 text-sm mb-6 bg-main-bg/5 p-4 rounded-xl">
+                        <div>
+                          <p className="text-main-text/50 font-bold mb-1">رقم الهوية</p>
+                          <p className="font-mono font-bold text-main-text">{app.idNumber}</p>
+                        </div>
+                        <div>
+                          <p className="text-main-text/50 font-bold mb-1">رقم الجوال</p>
+                          <p className="font-mono font-bold text-main-text" dir="ltr">{app.phone}</p>
+                        </div>
+                        <div>
+                          <p className="text-main-text/50 font-bold mb-1">تاريخ الميلاد</p>
+                          <div className="flex items-center gap-1 font-bold text-main-text">
+                            <Calendar size={14} /> {app.birthDate}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-main-text/50 font-bold mb-1">السجل التجاري</p>
+                          <p className={`font-bold ${app.hasCommercialRecord ? "text-green-600" : "text-red-500"}`}>
+                            {app.hasCommercialRecord ? "موجود ✅" : "غير متوفر ❌"}
+                          </p>
                         </div>
                       </div>
-                      <div>
-                        <p className="text-main-text/50 font-bold mb-1">السجل التجاري</p>
-                        <p className={`font-bold ${app.hasCommercialRecord ? "text-green-600" : "text-red-500"}`}>
-                          {app.hasCommercialRecord ? "موجود ✅" : "غير متوفر ❌"}
-                        </p>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleApprove(app)}
+                          disabled={processingId === app.id}
+                          className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition flex justify-center items-center gap-2 disabled:opacity-50 shadow-md"
+                        >
+                          {processingId === app.id ? <Loader className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                          قبول وترقية
+                        </button>
+
+                        <button
+                          onClick={() => handleReject(app)}
+                          disabled={processingId === app.id}
+                          className="flex-1 bg-red-100 text-red-700 border border-red-200 py-3 rounded-xl font-bold hover:bg-red-200 transition flex justify-center items-center gap-2 disabled:opacity-50"
+                        >
+                          <XCircle size={18} /> رفض
+                        </button>
                       </div>
                     </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleApprove(app)}
-                        disabled={processingId === app.id}
-                        className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition flex justify-center items-center gap-2 disabled:opacity-50 shadow-md"
-                      >
-                        {processingId === app.id ? <Loader className="animate-spin" size={18} /> : <CheckCircle size={18} />}
-                        قبول وترقية
-                      </button>
-
-                      <button
-                        onClick={() => handleReject(app.id)}
-                        disabled={processingId === app.id}
-                        className="flex-1 bg-red-100 text-red-700 border border-red-200 py-3 rounded-xl font-bold hover:bg-red-200 transition flex justify-center items-center gap-2 disabled:opacity-50"
-                      >
-                        <XCircle size={18} /> رفض
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
 
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

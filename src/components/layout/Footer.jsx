@@ -1,23 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { FaFacebook, FaInstagram, FaTwitter } from "react-icons/fa";
+import { useTranslation } from "react-i18next"; 
 import KashtaLogo from "../../assets/Kashtalogo.png";
 
 // --- Constants & Data ---
 
-// Quick links for navigation
-const QUICK_LINKS = [
-  { label: "الرئيسية", path: "/" },
-  { label: "عن كشتة", path: "/about-us" },
-];
-
-// Links specifically for service providers
-const PROVIDER_LINKS = [
-  { label: "إضافة خدمة", path: "/add-service" },
-  { label: "إدارة الحجوزات", path: "/manage-bookings" },
-];
-
-// Social media links configuration
+// Social media links can stay outside as they don't usually need translation
 const SOCIAL_LINKS = [
   { icon: FaFacebook, href: "#", label: "Facebook" },
   { icon: FaTwitter, href: "#", label: "Twitter" },
@@ -26,9 +15,6 @@ const SOCIAL_LINKS = [
 
 // --- Sub-Components ---
 
-/**
- * Renders a list of navigation links.
- */
 const FooterLinksList = ({ links }) => (
   <ul className="space-y-2">
     {links.map((link, index) => (
@@ -44,9 +30,6 @@ const FooterLinksList = ({ links }) => (
   </ul>
 );
 
-/**
- * Renders a single social media icon link.
- */
 const SocialIcon = ({ icon: Icon, href, label }) => (
   <a
     href={href}
@@ -60,10 +43,21 @@ const SocialIcon = ({ icon: Icon, href, label }) => (
 // --- Main Component ---
 
 function Footer() {
+  const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
 
+  const QUICK_LINKS = [
+    { label: t('footer.home'), path: "/" },
+    { label: t('footer.about'), path: "/about-us" },
+  ];
+
+  const PROVIDER_LINKS = [
+    { label: t('footer.add_service'), path: "/add-service" },
+    { label: t('footer.manage_bookings'), path: "/manage-bookings" },
+  ];
+
   return (
-    <footer className="bg-second-bg text-main-text py-12 mt-auto shadow-inner border-t border-main-text/20">
+    <footer className="bg-second-bg text-main-text py-12 mt-auto shadow-inner ">
       <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-8">
         
         {/* 1. Brand & About Section */}
@@ -75,30 +69,30 @@ function Footer() {
             loading="lazy"
           />
           <p className="text-main-text/90 leading-relaxed max-w-xs">
-            وجهتك الأولى لحجز أفضل الخيام والمستلزمات لرحلات التخييم.
+            {t('footer.description')} 
           </p>
         </div>
 
         {/* 2. Quick Links Section */}
         <div>
-          <h3 className="text-xl font-bold mb-4 border-b-2 border-main-text/10 pb-2 w-fit">
-            روابط سريعة
+          <h3 className="text-xl font-bold mb-4 border-b-2 border-main-bg pb-2 w-fit">
+            {t('footer.quick_links')} 
           </h3>
           <FooterLinksList links={QUICK_LINKS} />
         </div>
 
         {/* 3. Provider Links Section */}
         <div>
-          <h3 className="text-xl font-bold mb-4 border-b-2 border-main-text/10 pb-2 w-fit">
-            للمزودين
+          <h3 className="text-xl font-bold mb-4 border-b-2 border-main-bg pb-2 w-fit">
+            {t('footer.for_providers')} 
           </h3>
           <FooterLinksList links={PROVIDER_LINKS} />
         </div>
 
         {/* 4. Contact & Social Section */}
         <div>
-          <h3 className="text-xl font-bold mb-4 border-b-2 border-main-text/10 pb-2 w-fit">
-            تواصل معنا
+          <h3 className="text-xl font-bold mb-4 border-b-2 border-main-bg pb-2 w-fit">
+            {t('footer.contact_us')} 
           </h3>
           <div className="flex gap-2">
             {SOCIAL_LINKS.map((social, index) => (
@@ -115,8 +109,8 @@ function Footer() {
       </div>
 
       {/* Copyrights Section */}
-      <div className="border-t border-main-text/10 mt-10 pt-8 text-center text-main-text/60 text-sm">
-        <p>&copy; {currentYear} كشتة. جميع الحقوق محفوظة.</p>
+      <div className="border-t border-main-bg mt-10 pt-8 text-center text-main-text/60 text-sm">
+        <p>&copy; {currentYear} {t('footer.copyrights')}</p>
       </div>
     </footer>
   );

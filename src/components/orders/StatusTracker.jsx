@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   FaHourglassHalf,
   FaCheckCircle,
@@ -7,46 +8,8 @@ import {
   FaTimesCircle,
 } from "react-icons/fa";
 
-// --- Configuration Data ---
-
-// Defined steps for the order lifecycle
-const ORDER_STEPS = [
-  {
-    status: "pending",
-    text: "أرسلنا طلبك... المزود شوي ويشيك عليه",
-    icon: <FaHourglassHalf />,
-  },
-  {
-    status: "confirmed",
-    text: "وافقوا! طلبك قيد التجهيز (باقي شوي)",
-    icon: <FaCheckCircle />,
-  },
-  {
-    status: "ready",
-    text: "حمّلنا الدباب... طلبك في الطريق!",
-    icon: <FaTruck />,
-  },
-  {
-    status: "completed",
-    text: "وصل بالسلامة. استمتع بالكشتة",
-    icon: <FaRegSmileBeam />,
-  },
-];
-
-// Specific configuration for cancelled state
-const CANCELLED_STATE = {
-  status: "cancelled",
-  text: "أووه! للأسف الطلب ملغي",
-  icon: <FaTimesCircle />,
-};
-
 // --- Helper Functions ---
 
-/**
- * Determines the CSS classes for a step circle based on its state.
- * @param {boolean} isCompleted - True if the step is finished.
- * @param {boolean} isCurrent - True if this is the active step.
- */
 const getStepStyles = (isCompleted, isCurrent) => {
   if (isCompleted) return "bg-green-600 text-white"; // Finished steps (Green)
   if (isCurrent) return "bg-blue-600 text-white";    // Active step (Blue)
@@ -56,15 +19,47 @@ const getStepStyles = (isCompleted, isCurrent) => {
 // --- Main Component ---
 
 function StatusTracker({ status }) {
-  // Find the index of the current status in our steps array
+  const { t } = useTranslation();
+
+  // ✅ Move configuration inside to use 't'
+  const ORDER_STEPS = [
+    {
+      status: "pending",
+      text: t('tracker.step_pending'), // "أرسلنا طلبك... المزود شوي ويشيك عليه"
+      icon: <FaHourglassHalf />,
+    },
+    {
+      status: "confirmed",
+      text: t('tracker.step_confirmed'), // "وافقوا! طلبك قيد التجهيز"
+      icon: <FaCheckCircle />,
+    },
+    {
+      status: "ready",
+      text: t('tracker.step_ready'), // "حمّلنا الدباب... طلبك في الطريق!"
+      icon: <FaTruck />,
+    },
+    {
+      status: "completed",
+      text: t('tracker.step_completed'), // "وصل بالسلامة. استمتع بالكشتة"
+      icon: <FaRegSmileBeam />,
+    },
+  ];
+
+  const CANCELLED_STATE = {
+    status: "cancelled",
+    text: t('tracker.step_cancelled'), // "أووه! للأسف الطلب ملغي"
+    icon: <FaTimesCircle />,
+  };
+
+  // Find the index of the current status
   const currentStepIndex = ORDER_STEPS.findIndex((step) => step.status === status);
 
-  // 1. Handle Cancelled State explicitly (Guard Clause)
+  // 1. Handle Cancelled State
   if (status === "cancelled") {
     return (
       <div className="p-4 bg-red-100 rounded-lg animate-fade-in">
         <div className="flex items-center text-red-700">
-          <span className="text-3xl mr-4">{CANCELLED_STATE.icon}</span>
+          <span className="text-3xl mr-4 rtl:ml-4 rtl:mr-0">{CANCELLED_STATE.icon}</span>
           <span className="text-lg font-bold">{CANCELLED_STATE.text}</span>
         </div>
       </div>
@@ -75,7 +70,6 @@ function StatusTracker({ status }) {
   return (
     <div className="space-y-6">
       {ORDER_STEPS.map((step, index) => {
-        // Logic: A step is completed if its index is less than the current status index
         const isCompleted = index < currentStepIndex;
         const isCurrent = index === currentStepIndex;
 
@@ -92,7 +86,7 @@ function StatusTracker({ status }) {
             </div>
 
             {/* Step Label */}
-            <div className="ml-4">
+            <div className="ml-4 rtl:mr-4 rtl:ml-0">
               <h4
                 className={`text-lg font-bold transition-colors duration-300 ${
                   isCompleted || isCurrent ? "text-gray-900" : "text-gray-500"

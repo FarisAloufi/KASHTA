@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { db } from "../../firebase/firebaseConfig";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { User, Star, Briefcase, ShieldCheck } from "lucide-react";
+import { useTranslation } from "react-i18next"; // ✅ استيراد الترجمة
 
 const ProviderInfoCard = ({ providerId }) => {
+  const { t } = useTranslation(); // ✅ تفعيل الـ hook
   const [provider, setProvider] = useState(null);
   const [stats, setStats] = useState({ rating: 0, reviewCount: 0, servicesCount: 0 });
   const [loading, setLoading] = useState(true);
@@ -30,14 +32,11 @@ const ProviderInfoCard = ({ providerId }) => {
         
         const myServicesIds = servicesSnap.docs.map(doc => doc.id);
 
-        // 3. Calculate Aggregated Ratings (Consider optimizing this by storing aggregates in DB)
+        // 3. Calculate Aggregated Ratings
         let totalStars = 0;
         let totalCount = 0;
 
         if (myServicesIds.length > 0) {
-          // Fetch ratings for all provider's services
-          // Optimization: Fetch all ratings where serviceId is IN provider's service list
-          // Note: Firestore 'in' query supports up to 10 items. For simplicity, we keep map logic here but clean it up.
           const ratingsPromises = myServicesIds.map(async (serviceId) => {
             const ratingsQuery = query(
               collection(db, "ratings"),
@@ -79,7 +78,7 @@ const ProviderInfoCard = ({ providerId }) => {
   if (!provider) return null;
 
   return (
-    <div className="bg-second-bg border border-main-text/10 rounded-3xl p-6 mb-8 shadow-lg">
+    <div className="bg-second-bg border border-main-bg rounded-3xl p-6 mb-8 shadow-lg">
       
       {/* Header: Avatar & Name */}
       <div className="flex items-center gap-4 mb-4">
@@ -91,10 +90,10 @@ const ProviderInfoCard = ({ providerId }) => {
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-extrabold text-main-text">{provider.name}</h3>
             <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-green-200">
-              <ShieldCheck size={12} /> موثوق
+              <ShieldCheck size={12} /> {t('provider.trusted')}
             </span>
           </div>
-          <p className="text-xs text-main-text/60 font-medium mt-1">مقدم خدمة معتمد لدى كشتة</p>
+          <p className="text-xs text-main-text/60 font-medium mt-1">{t('provider.certified')}</p>
         </div>
       </div>
 
@@ -102,13 +101,13 @@ const ProviderInfoCard = ({ providerId }) => {
       <div className="flex items-center justify-between gap-3 text-sm text-main-text/70 bg-main-bg/5 p-3 rounded-xl">
         <div className="flex items-center gap-2">
           <Briefcase size={16} className="text-main-accent" />
-          <span className="font-bold">{stats.servicesCount} خدمة</span>
+          <span className="font-bold">{stats.servicesCount} {t('provider.services_count')}</span>
         </div>
         
         <div className="flex items-center gap-2">
           <Star size={16} className="text-yellow-500 fill-yellow-500" />
           <span className="font-bold text-main-text">{stats.rating}</span>
-          <span className="text-xs font-normal opacity-70">({stats.reviewCount} تقييم)</span>
+          <span className="text-xs font-normal opacity-70">({stats.reviewCount} {t('provider.reviews')})</span>
         </div>
       </div>
 

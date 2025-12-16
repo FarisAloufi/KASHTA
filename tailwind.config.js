@@ -4,14 +4,16 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: "class", // Enable class-based dark mode
   theme: {
     extend: {
       colors: {
-        "main-bg": "#4A352F",
-        "second-bg": "#d8ceb8",
-        "main-accent": "#e48a4e",
-        "main-text": "#4A352F",
-        "second-text" : "#d8ceb8"
+"main-bg": "var(--main-bg)",
+        "second-bg": "var(--second-bg)",
+        "main-accent": "var(--main-accent)",
+        "main-text": "var(--main-text)",
+        "second-text": "var(--second-text)",
+
       },
       fontFamily: {
         sans: ["Kumbh Sans", "sans-serif"],

@@ -1,0 +1,30 @@
+// src/constants/nationalities.js
+
+// لاحظ: القيمة value هنا جعلناها كود الدولة عشان نستخدمه في المكتبة
+export const NATIONALITIES_OPTIONS = [
+  { value: "SA", label: "سعودي" },
+  { value: "EG", label: "مصري" },
+  { value: "JO", label: "أردني" },
+  { value: "PS", label: "فلسطيني" },
+  { value: "SY", label: "سوري" },
+  { value: "LB", label: "لبناني" },
+  { value: "KW", label: "كويتي" },
+  { value: "AE", label: "إماراتي" },
+  { value: "QA", label: "قطري" },
+  { value: "OM", label: "عماني" },
+  { value: "BH", label: "بحريني" },
+  { value: "YE", label: "يمني" },
+  { value: "IQ", label: "عراقي" },
+  { value: "SD", label: "سوداني" },
+  { value: "MA", label: "مغربي" },
+  { value: "TN", label: "تونسي" },
+  { value: "DZ", label: "جزائري" },
+  { value: "LY", label: "ليبي" },
+  { value: "PK", label: "باكستاني" },
+  { value: "IN", label: "هندي" },
+  { value: "PH", label: "فلبيني" },
+  { value: "BD", label: "بنغالي" },
+  { value: "ID", label: "أندونيسي" },
+  { value: "TR", label: "تركي" },
+  { value: "OTHER", label: "جنسية أخرى" },
+];
