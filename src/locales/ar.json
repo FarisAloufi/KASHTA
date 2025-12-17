@@ -83,7 +83,9 @@
     "logout": "تسجيل الخروج",
     "login": "تسجيل الدخول",
     "profile": "ملفي",
-    "dashboard": "لوحة التحكم"
+    "dashboard": "لوحة التحكم",
+    "special_requests": "طلباتي الخاصة",
+  "browse_requests": "تصفح الطلبات"
   },
   "home": {
     "badge": "منصتك الأولى للكشتات بالمملكة",
@@ -213,21 +215,10 @@
     "no_bookings_desc": "يلا احجز أول كشتة وعيش اللحظة.",
     "empty_filter": "ما فيه طلبات بهالقسم"
   },
-  "status": {
-    "pending": "ننتظر الموافقة",
-    "confirmed": "يجهزونها",
-    "ready": "جاينك بالطريق",
-    "completed": "تمت يا وحش",
-    "cancelled": "تكنسلت",
-    "unknown": "مدري وش وضعها",
-    "ready_delivery": "جاهزة للتسليم",
-    "delivered": "وصلت",
-    "preparing": "قاعدين يضبطونها"
-  },
-  "booking_card": {
-    "customer": "راعي الطلب",
-    "total": "الحساب"
-  },
+"booking_card": {
+  "customer": "راعي الطلب",
+  "total": "الحساب"
+},
 "booking_detail": {
     "order_number": "رقم الطلب",
     "customer_info": "معلومات العميل",
@@ -367,5 +358,34 @@
     "loading": "نجيب التقييم...",
     "not_found": "ما لقينا تقييم لهذا الطلب.",
     "no_comment": "ما كتب تعليق، بس قيم."
-  }
+  },
+
+  "custom_requests": {
+  "confirm_accept_msg": "هل أنت متأكد من قبول هذا العرض؟ سيتم إنشاء حجز فوري.",
+  "special_req_prefix": "طلب خاص",
+  "accept_success": "تم قبول العرض بنجاح! ✅",
+  "accept_error": "حدث خطأ أثناء قبول العرض",
+  "req_not_found": "الطلب غير موجود",
+  "details_title": "تفاصيل الطلب",
+  "budget_label": "الميزانية",
+  "location_label": "موقع الكشتة",
+  "provider_offers": "عروض المزودين",
+  "waiting_offers": "بانتظار تقديم العروض",
+  "offer_accepted_badge": "تم قبول هذا العرض",
+  "no_notes": "لا توجد ملاحظات إضافية",
+  "accept_btn": "قبول",
+  "my_requests_title": "طلباتي الخاصة",
+  "new_req_btn": "طلب جديد",
+  "no_reqs": "لا توجد طلبات خاصة حتى الآن",
+  "location_error": "الرجاء تحديد موقع الكشتة على الخريطة",
+  "new_req_page_title": "طلب خاص جديد",
+  "form_title": "طلب خدمة خاصة",
+  "label_title": "عنوان الطلب",
+  "label_desc": "التفاصيل",
+  "label_budget": "الميزانية المتوقعة (ريال)",
+  "label_location": "حدد الموقع",
+  "location_success": "تم تحديد الإحداثيات بنجاح",
+  "submit_btn": "نشر الطلب"
+}
+
 }

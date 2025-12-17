@@ -83,7 +83,9 @@
     "logout": "Logout",
     "login": "Login/Signup",
     "profile": "Profile",
-    "dashboard": "Dashboard" 
+    "dashboard": "Dashboard" ,
+    "special_requests": "My Requests",
+  "browse_requests": "Browse Requests"
   },
   "home": {
     "badge": "The #1 Camping Platform in KSA",
@@ -367,6 +369,39 @@
     "loading": "Loading review...",
     "not_found": "No review found for this booking.",
     "no_comment": "No written comment."
-  }
+  },
+  "custom_requests": {
+  "confirm_accept_msg": "Are you sure you want to accept this offer? A booking will be created immediately.",
+  "special_req_prefix": "Special Request",
+  "accept_success": "Offer accepted successfully! ✅",
+  "accept_error": "An error occurred while accepting the offer",
+  "req_not_found": "Request not found",
+  "details_title": "Request Details",
+  "budget_label": "Budget",
+  "location_label": "Location",
+  "provider_offers": "Provider Offers",
+  "waiting_offers": "Waiting for offers",
+  "offer_accepted_badge": "Offer Accepted",
+  "no_notes": "No additional notes",
+  "accept_btn": "Accept",
+  "my_requests_title": "My Custom Requests",
+  "new_req_btn": "New Request",
+  "no_reqs": "No custom requests found yet",
+  "location_error": "Please select the location on the map",
+  "new_req_page_title": "New Special Request",
+  "form_title": "Request Special Service",
+  "label_title": "Request Title",
+  "label_desc": "Details",
+  "label_budget": "Estimated Budget (SAR)",
+  "label_location": "Select Location",
+  "location_success": "Location selected successfully",
+  "submit_btn": "Post Request"
+},
+"status": {
+  "open": "Open",
+  "accepted": "Accepted",
+  "open_for_offers": "Open for offers",
+  "closed": "Closed"
+}
 
 }

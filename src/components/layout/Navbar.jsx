@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from 'react-i18next';
 import { Globe, LogOut, Moon, Sun } from 'lucide-react';
+import { FaSearchDollar } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase/firebaseConfig";
@@ -14,6 +15,7 @@ import {
   FaCalendarAlt,
   FaShoppingCart,
   FaListAlt,
+  FaClipboardList,
 } from "react-icons/fa";
 import KashtaLogo from "../../assets/Kashtalogo.png";
 
@@ -58,10 +60,14 @@ function Navbar() {
   const PROVIDER_LINKS = [
     { to: "/manage-bookings", label: t('navbar.manage_services'), icon: FaListAlt },
     { to: "/add-service", label: t('navbar.add_service'), icon: FaPlusCircle },
+    // ✅ تم تحويل النص لترجمة ليدعم الإنجليزية والعربية
+    { to: "/provider-requests", label: t('navbar.browse_requests'), icon: FaSearchDollar },
   ];
 
   const CUSTOMER_LINKS = [
     { to: "/my-bookings", label: t('navbar.my_bookings'), icon: FaCalendarAlt },
+    // ✅ تم استخدام مفتاح الترجمة الصحيح
+    { to: "/my-requests", label: t('navbar.special_requests'), icon: FaClipboardList },
   ];
 
   const handleLogout = async () => {

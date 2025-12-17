@@ -8,14 +8,15 @@ const containerStyle = {
   borderRadius: "1rem",
 };
 
-const libraries = [];
+
+const libraries = ["places"];
 
 function MapDisplay({ location }) {
-const { isLoaded } = useJsApiLoader({
-  id: "google-map-script",
-  googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY, 
-  libraries: libraries,
-});
+  const { isLoaded } = useJsApiLoader({
+    id: "google-map-script", 
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
+    libraries: libraries,  
+  });
 
   if (!location || !location.lat || !location.lng) {
     return (
@@ -44,8 +45,8 @@ const { isLoaded } = useJsApiLoader({
       center={center}
       zoom={14}
       options={{
-        disableDefaultUI: true, // إخفاء أزرار التحكم ليكون العرض نظيفًا
-        draggable: false,       // منع التحريك (اختياري)
+        disableDefaultUI: true, 
+        draggable: false,     
         zoomControl: false,
         scrollwheel: false,
         disableDoubleClickZoom: true,

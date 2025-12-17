@@ -245,8 +245,8 @@ function CartPage() {
 
                     <div className="grid grid-cols-1 gap-6">
 
-                      {/* Date Picker Section */}
-                      <div className="bg-main-bg/5 p-6 rounded-[2rem] ">
+                      {/* Date Picker Section - ✅ FIX: Added z-50 to bring it to front */}
+                      <div className="bg-main-bg/5 p-6 rounded-[2rem] relative z-50">
                         <label className="text-lg font-bold flex items-center gap-2 text-main-text mb-4">
                           <Clock size={20} className="text-main-accent" />
                           {t('cart.date_label')}
@@ -269,8 +269,8 @@ function CartPage() {
                         </div>
                       </div>
 
-                      {/* Map Picker */}
-                      <div className="bg-main-bg/5 p-2 rounded-[2rem]">
+                      {/* Map Picker - ✅ FIX: Added z-0 to keep it behind date picker */}
+                      <div className="bg-main-bg/5 p-2 rounded-[2rem] relative z-0">
                         <div className="p-4 pb-2">
                           <label className="text-lg font-bold flex items-center gap-2 text-main-text">
                             <MapPin size={20} className="text-main-accent" />

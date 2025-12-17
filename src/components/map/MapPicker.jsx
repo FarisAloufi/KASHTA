@@ -1,16 +1,14 @@
-import React, { useState, useCallback, useRef } from "react";
-import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from "@react-google-maps/api";
+import React, { useState, useCallback } from "react";
+import { GoogleMap, useJsApiLoader, Marker, Autocomplete } from "@react-google-maps/api";
 import { Search, Loader, MapPin } from "lucide-react";
-import { isLocationAllowed } from "../../data/serviceZones"; // تأكد من المسار
+import { isLocationAllowed } from "../../data/serviceZones"; 
 
-// إعدادات الخريطة
 const containerStyle = {
   width: "100%",
   height: "100%",
   borderRadius: "1rem",
 };
 
-// مركز جدة
 const JEDDAH_CENTER = {
   lat: 21.543333,
   lng: 39.172778
@@ -20,14 +18,14 @@ const libraries = ["places"];
 
 function MapPicker({ onLocationChange, mode = "booking" }) {
   const { isLoaded } = useJsApiLoader({
-  id: "google-map-script",
-  googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY, 
-  libraries: libraries,
-});
+    id: "google-map-script",
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY, 
+    libraries: libraries,
+  });
 
   const [map, setMap] = useState(null);
   const [markerPosition, setMarkerPosition] = useState(JEDDAH_CENTER);
-  const [searchBox, setSearchBox] = useState(null);
+  const [autocomplete, setAutocomplete] = useState(null);
 
   const onLoad = useCallback((map) => {
     setMap(map);
@@ -43,11 +41,11 @@ function MapPicker({ onLocationChange, mode = "booking" }) {
     if (mode === "set") {
       setMarkerPosition(newPos);
       if(onLocationChange) onLocationChange({ lat, lng });
+      if(map) map.panTo(newPos);
     } else {
       if (isLocationAllowed(lat, lng)) {
         setMarkerPosition(newPos);
         if(onLocationChange) onLocationChange({ lat, lng });
-        
         if(map) map.panTo(newPos);
       } else {
         alert("عذراً، خدماتنا متاحة حالياً داخل مدينة جدة فقط.");
@@ -56,25 +54,30 @@ function MapPicker({ onLocationChange, mode = "booking" }) {
   };
 
   const handleMapClick = (e) => {
-    handleLocationUpdate(e.latLng.lat(), e.latLng.lng());
+    if (e.latLng) {
+        handleLocationUpdate(e.latLng.lat(), e.latLng.lng());
+    }
   };
 
-
-  const onPlacesChanged = () => {
-    const places = searchBox.getPlaces();
-    if (places.length === 0) return;
-
-    const place = places[0];
-    const location = {
-      lat: place.geometry.location.lat(),
-      lng: place.geometry.location.lng()
-    };
-
-    handleLocationUpdate(location.lat, location.lng);
+  const onLoadAutocomplete = (autoC) => {
+    setAutocomplete(autoC);
   };
 
-  const onLoadSearchBox = (ref) => {
-    setSearchBox(ref);
+  const onPlaceChanged = () => {
+    if (autocomplete !== null) {
+      const place = autocomplete.getPlace();
+      
+      if (!place.geometry || !place.geometry.location) {
+        return;
+      }
+
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+
+      handleLocationUpdate(lat, lng);
+    } else {
+      console.log('Autocomplete is not loaded yet!');
+    }
   };
 
   if (!isLoaded) {
@@ -88,9 +91,9 @@ function MapPicker({ onLocationChange, mode = "booking" }) {
   return (
     <div className="relative w-full h-full">
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 w-3/4 max-w-md">
-        <StandaloneSearchBox
-          onLoad={onLoadSearchBox}
-          onPlacesChanged={onPlacesChanged}
+        <Autocomplete
+          onLoad={onLoadAutocomplete}
+          onPlaceChanged={onPlaceChanged}
         >
           <div className="relative">
             <input
@@ -100,7 +103,7 @@ function MapPicker({ onLocationChange, mode = "booking" }) {
             />
             <Search className="absolute left-3 top-3.5 text-gray-400" size={20} />
           </div>
-        </StandaloneSearchBox>
+        </Autocomplete>
       </div>
 
       <GoogleMap
@@ -112,7 +115,7 @@ function MapPicker({ onLocationChange, mode = "booking" }) {
         onClick={handleMapClick}
         options={{
           streetViewControl: false,
-          mapTypeControl: true, 
+          mapTypeControl: true,
           fullscreenControl: false,
         }}
       >

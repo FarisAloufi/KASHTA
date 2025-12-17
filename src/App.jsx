@@ -5,7 +5,7 @@ import { Loader } from "lucide-react";
 import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 
-// --- Contexts (ضرورية جداً) ---
+// --- Contexts ---
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -39,10 +39,17 @@ const ProfilePage = lazy(() => import("./pages/customer/ProfilePage"));
 const MyBookingsPage = lazy(() => import("./pages/customer/MyBookingsPage"));
 const BookingDetailPage = lazy(() => import("./pages/customer/BookingDetailPage"));
 
+// ✅ New Custom Request Pages
+const CreateRequestPage = lazy(() => import("./pages/customer/CreateRequestPage"));
+const MyCustomRequestsPage = lazy(() => import("./pages/customer/MyCustomRequestsPage"));
+const RequestDetailsPage = lazy(() => import("./pages/customer/RequestDetailsPage"));
+
 // Pages: Provider & Admin
 const AddServicePage = lazy(() => import("./pages/provider/AddServicePage"));
 const ManageBookingsPage = lazy(() => import("./pages/provider/ManageBookingsPage"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const ProviderRequestsPage = lazy(() => import("./pages/provider/ProviderRequestsPage"));
+const ProviderRequestDetailsPage = lazy(() => import("./pages/provider/ProviderRequestDetailsPage"));
 
 // --- Loading Component ---
 const PageLoader = () => (
@@ -92,12 +99,20 @@ function App() {
                       <Route path="/my-bookings" element={<MyBookingsPage />} />
                       <Route path="/booking/:id" element={<BookingDetailPage />} />
                       <Route path="/verify-email" element={<VerifyEmail />} />
+                      
+                      {/* مسارات الطلبات الخاصة للعميل */}
+                      <Route path="/create-request" element={<CreateRequestPage />} />
+                      <Route path="/my-requests" element={<MyCustomRequestsPage />} />
+                      <Route path="/my-requests/:id" element={<RequestDetailsPage />} />
                     </Route>
 
                     {/* Provider & Admin Routes */}
                     <Route element={<ProviderRoute />}>
                       <Route path="/add-service" element={<AddServicePage />} />
                       <Route path="/manage-bookings" element={<ManageBookingsPage />} />
+                      <Route path="/provider-requests" element={<ProviderRequestsPage />} />
+                      <Route path="/provider-requests/:id" element={<ProviderRequestDetailsPage />} />
+                      
                       <Route path="/admin" element={<AdminDashboard />} />
                     </Route>
 
